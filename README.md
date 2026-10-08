@@ -2,48 +2,83 @@
 
 > What should we eat?
 
-**Status:** skeleton. It runs, it is tested, and its pages and API are live — but the product itself is not written yet.
+**Status:** the product works — food near you, a meal planner, the food database and the pantry are live and tested.
+Delivery comparison and recipes from the network's AI (the manifests' other pillars) are not built yet.
+
 **Domain:** `openvibe.food` · **Port:** 4970 · **Service id:** `food` · **Env prefix:** `FOOD`
 **License:** AGPL-3.0 (same as every OpenVibe service).
 
-## What is already here
+## What it does
 
 | Piece | Where | What it does |
 |---|---|---|
-| Config | [server/config.js](server/config.js) | Every value from the environment; `load(env)` is pure so tests build a config without touching `process.env` |
-| App | [server/app.js](server/app.js) | helmet (CSP, frame-ancestors none), the Network session middleware, `/auth`, the legal pages, static assets, the `/api/v1` mount, the 404 and the error handler |
-| Sign-in | [server/auth/sso.js](server/auth/sso.js) | OAuth 2 authorization code with PKCE (S256) against OpenVibe.Network; httpOnly `food_at` / `food_rt` cookies; `/auth/me` for the shared navbar |
-| Signing key | [server/auth/keys.js](server/auth/keys.js) | The Network JWKS through `openvibe-sdk/auth`, kept fresh, verified offline |
-| Who is calling | [server/http/principal.js](server/http/principal.js) | `req.principal`: a person, an app/agent/service with a capability, or anonymous |
-| API | [server/http/api.js](server/http/api.js) | `GET /api/v1/ping`; the router, the problem+json errors and the guards are wired for the product's routes |
-| Pages | [server/http/pages.js](server/http/pages.js), [server/render/](server/render/) | The home page and `/updates`, server-rendered through `openvibe-shared/shell`, readable without JavaScript |
-| Discovery | [server/http/discovery.js](server/http/discovery.js) | `robots.txt`, `sitemap.xml`, `llms.txt`, `llms-full.txt` and the home page's JSON-LD |
-| Limits | [server/http/caller-limits.js](server/http/caller-limits.js), [deploy/nginx/](deploy/nginx/) | Per-caller limits at the API and per-address limits at nginx |
-| Health | [server/observability.js](server/observability.js) | `/api/health`, a truthful `/api/ready` (the database is required) and Prometheus metrics on loopback only |
-| Database | [server/db.js](server/db.js), [migrations/](migrations/) | PostgreSQL through `openvibe-sdk/db`; `NNNN_*.sql` applied at boot; PGlite in development |
-| Process | [server/index.js](server/index.js) | Listens on `PORT`, and stops gracefully through `openvibe-sdk/service` |
-| Deploy | [deploy/nginx/openvibe.food.conf](deploy/nginx/openvibe.food.conf), [deploy/systemd/openvibe-food.service](deploy/systemd/openvibe-food.service) | nginx vhost and systemd unit (port 4970, `/opt/openvibe.food`, `/etc/openvibe/food.env`) |
-| Tests | [test/](test/) | `npm test`: every `test/*.test.js` in its own process, on a temp PGlite database with an in-process mock of OpenVibe.Network |
+| Food near you | [/near](server/http/pages.js), [server/food/places.js](server/food/places.js) | A place name or coordinates → the food banks, soup kitchens, community fridges, free pantry boxes and budget grocery stores around it, from OpenStreetMap through Overpass, with distance, address, opening hours and a link back to the object |
+| Meal planner | [/plan](server/http/pages.js), [server/food/planner.js](server/food/planner.js) | One person, a couple or a group, 1–14 days: one item from each of the six USDA MyPlate food groups, cheapest per gram first, then the best calories a dollar, with a shopping list, the cheapest store per line and an estimated cost. Deterministic, and a budget is a hard cap |
+| Food database | [/foods, /foods/:slug](server/http/pages.js), [server/food/foods.js](server/food/foods.js) | 42 items with nutrition per serving and per 100 g, the typical price band and the chain-by-chain comparison; server-rendered and in the sitemap |
+| Pantry | [/pantry](server/http/pages.js), [server/food/pantry-match.js](server/food/pantry-match.js) | Signed in, keep what is in your cupboard and see which basic recipes you can make now, and what one more item would unlock. Deterministic; no model call |
+| The OpenStreetMap client | [server/food/upstream.js](server/food/upstream.js) | The only outbound calls this service makes: paced, cached, identified, bounded |
+| Store | [server/food/store.js](server/food/store.js), [migrations/](migrations/) | `food_geo_cache`, `food_plans`, `food_pantry` |
+| Platform | the skeleton | Sign-in with OpenVibe.Network, the OpenVibe Frame, limits, readiness, discovery, deploy files |
+
+Everything is server-rendered and works without JavaScript: the search is a GET form, saving a plan and a cupboard is
+a plain POST, and every page is complete as it leaves the server.
 
 ## API
 
 | Route | Who | |
 |---|---|---|
 | `GET /api/v1/ping` | anyone | `{ ok: true, service: "food" }` |
+| `GET /api/v1/places?q=&kind=foodbank\|grocery\|both[&lat=&lon=&radius=&limit=]` | anyone | food near a place; every answer carries the ODbL attribution |
+| `GET /api/v1/foods[?group=&q=]` | anyone | the food list |
+| `GET /api/v1/foods/:slug` | anyone | one food, with the chain-by-chain prices |
+| `POST /api/v1/plans` | signed in | plan and save: `{ people, days, budget?, title? }` → 201 with the plan |
+| `GET /api/v1/plans`, `GET /api/v1/plans/:id` | signed in | your plans, newest first |
+| `GET /api/v1/pantry` | signed in | your cupboard, with the "what can I make" suggestions |
+| `PUT /api/v1/pantry` | signed in | replace it: `{ items: ["eggs-dozen", …] }` |
 
-Everything else the site serves is a page. The product adds its routes in [server/http/api.js](server/http/api.js), naming
-each route's capability in [server/http/principal.js](server/http/principal.js) (`CAPABILITIES`) and its numbers in
-[server/http/caller-limits.js](server/http/caller-limits.js) (`BUDGETS`).
+Public reads need no token. A person's own data (a plan, a pantry) needs a signed-in caller; an app, agent or service
+token needs the route's capability (`food.place.read`, `food.food.read`, `food.plan.read|write`,
+`food.pantry.read|write` — [server/http/principal.js](server/http/principal.js)). A write made with the session cookie
+must come from `openvibe.food` itself. Errors are RFC 9457 `application/problem+json` with a stable `code`.
 
-**Who can call it:** a person, with their Network token as a Bearer or this site's session; or an app, agent or service
-with a Network token for audience `openvibe.food` that holds the route's capability. A write made with the session cookie
-must come from `openvibe.food` itself. **Errors** are RFC 9457 `application/problem+json` with a stable `code`.
+**Per-caller limits** ([server/http/caller-limits.js](server/http/caller-limits.js)): reads take `FOOD_LIMITS_MINUTE` /
+`FOOD_LIMITS_HOUR`; the place search, which spends OpenStreetMap's shared request budget, has its own tighter numbers,
+as do saving a plan and replacing a pantry.
+
+## Data sources and their terms
+
+**OpenStreetMap** (food banks, stores) — [openstreetmap.org](https://www.openstreetmap.org/) © OpenStreetMap
+contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/). Read from
+[Nominatim](https://nominatim.org/) (a place name → coordinates) and the [Overpass API](https://overpass-api.de/)
+(the database). Both have published usage policies, and this service stays inside them:
+
+- it identifies itself with `FOOD_OSM_USER_AGENT` (`OpenVibeFood/0.1 (+https://openvibe.food)`), never a browser's;
+- it makes **at most one request a second per host** — calls to the same host queue behind each other, so the service
+  cannot burst at Nominatim however many visitors arrive at once;
+- it **caches every answer** in `food_geo_cache` for 7 days (`FOOD_GEO_CACHE_TTL_MS`): a place is geocoded once and an
+  area is queried once, not once per visitor;
+- it only ever asks for a small radius around a point (`around:`), never a bulk download, and never fetches a URL a
+  caller typed;
+- the attribution and the ODbL link appear on every page that shows a result, and in every API answer.
+
+**The food list and its prices** — carried over unchanged from OpenVibe.Tools' grocery source
+(`OpenVibe.Tools/apps/maps/server/sources/grocery.js`), where the food tools live today: typical 2025 US (Washington)
+prices for five budget chains and the USDA MyPlate groups. They are a band to plan by, **never a live price**. The
+Walmart page scraping that source also did is deliberately not ported: this service never scrapes a retail site.
+
+**Nutrition** — the same source's typical values per serving. "Per 100 g" is arithmetic on the pack size stated in an
+item's own name divided by its servings (for example a 15 oz can with 3.5 servings is 121 g a serving). Where a name
+states no weight — a dozen eggs, a 12-pack of ramen — no per-100 g figure is given rather than a density guessed.
+The nutrition figures are the source's, not analysed here, and are not dietary advice.
+
+**Recipes** — ten simple combinations written for this service in plain words, using only items from the food list.
+No copied recipe text. They are labelled "basic suggestions" wherever they appear.
 
 ## Configuration
 
 See [.env.example](.env.example). Required in production: `OV_OAUTH_CLIENT_SECRET` (the `food` OAuth client on the
-Network), `BASE_URL`, `DATABASE_URL` and `DATABASE_DIRECT_URL`. The database is the only required readiness check; the
-Network signing key, the OAuth client and Valkey are optional (the service says so, per check, on `/api/ready`).
+Network), `BASE_URL`, `DATABASE_URL` and `DATABASE_DIRECT_URL`. `FOOD_NOMINATIM_URL` and `FOOD_OVERPASS_URL` default
+to the public OSM hosts; tests point them at a stand-in and never reach the internet.
 
 ## Development
 
@@ -72,8 +107,9 @@ Reporting a vulnerability: [SECURITY.md](SECURITY.md).
 - Session tokens are httpOnly cookies; a FedCM assertion or an app or service token is never a session.
 - Secrets live only in the env file; only environment variable names appear in code and docs, and no secret is logged.
 - Request bodies are never logged.
-- Nothing in a request may decide a URL this service fetches: a caller's URL goes to OpenVibe.Tools, whose own guard
-  decides what may be fetched.
+- The only two hosts this service fetches are the OSM ones named in the configuration: a URL built from that base, and
+  nothing a caller sends. A place name is data in a query string, never a URL.
+- Nothing a person keeps here (a plan, a pantry) is public, cached or crawled.
 
 ---
 

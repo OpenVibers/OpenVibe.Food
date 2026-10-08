@@ -38,6 +38,22 @@ function load(env = process.env) {
         db: { url: env.DATABASE_URL || '', directUrl: env.DATABASE_DIRECT_URL || '', pgliteDir: env.FOOD_PGLITE_DIR || '' },
         valkey: { url: env.VALKEY_URL || '', prefix: env.VALKEY_PREFIX || 'ov:food:' },
 
+        // The two OpenStreetMap services "food near you" stands on (server/food/places.js). Both are open data with
+        // published usage policies: Nominatim at most one request a second, Overpass small bounded area queries —
+        // server/food/upstream.js paces every call to one host at a time and caches every answer for geoCacheTtlMs.
+        osm: {
+            nominatimUrl: trim(env.FOOD_NOMINATIM_URL || 'https://nominatim.openstreetmap.org'),
+            overpassUrl: trim(env.FOOD_OVERPASS_URL || 'https://overpass-api.de/api/interpreter'),
+            // Identify to OSM with a contact URL, as both policies require; never a browser User-Agent.
+            userAgent: env.FOOD_OSM_USER_AGENT || `OpenVibeFood/0.1 (+${baseUrl})`,
+            minIntervalMs: Math.max(0, int(env.FOOD_OSM_MIN_INTERVAL_MS, 1000)),
+            timeoutMs: Math.max(1000, int(env.FOOD_OSM_TIMEOUT_MS, 25_000)),
+            cacheTtlMs: Math.max(60_000, int(env.FOOD_GEO_CACHE_TTL_MS, 7 * 24 * 60 * 60 * 1000)),
+            defaultRadiusKm: 8,
+            maxRadiusKm: 50,
+            maxResults: 60,
+        },
+
         // OpenVibe.Network: SSO (OAuth2 authorization server with PKCE) and its JWKS.
         networkUrl,
         networkInternalUrl: trim(env.OV_NETWORK_INTERNAL_URL || 'http://127.0.0.1:4000'),

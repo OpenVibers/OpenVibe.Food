@@ -20,8 +20,13 @@ const READ = 'food.api.read';
     const rosa = t.network.addUser('rosa');
     const sam = t.network.addUser('sam');
 
-    await check('BUDGETS starts empty: the product declares its own expensive routes', () => {
-        assert.deepStrictEqual(BUDGETS, {});
+    await check('BUDGETS declares the product\'s expensive routes, each with real numbers', () => {
+        assert.deepStrictEqual(Object.keys(BUDGETS).sort(), ['food.pantry.write', 'food.place.search', 'food.plan.create']);
+        for (const [name, own] of Object.entries(BUDGETS)) {
+            assert.ok(own.minute > 0 && own.hour >= own.minute, `${name} has no real numbers`);
+        }
+        // The place search hits OpenStreetMap, so it is the tightest budget of the three.
+        assert.ok(BUDGETS['food.place.search'].minute <= Math.min(BUDGETS['food.plan.create'].minute, BUDGETS['food.pantry.write'].minute));
     });
 
     await check('a read: 3 a minute per address, then 429 rate_limited with Retry-After; another address passes', async () => {

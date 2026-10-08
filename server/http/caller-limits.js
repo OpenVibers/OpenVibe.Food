@@ -32,7 +32,15 @@ function caller(req) {
  *
  *   'food.thing.create': { minute: 6, hour: 60 },
  */
-const BUDGETS = {};
+const BUDGETS = {
+    // The place search is the expensive route: every miss is a Nominatim geocode and an Overpass area query, both
+    // community services with a shared one-request-a-second budget (server/food/upstream.js). Answers are cached for
+    // a week, so these numbers are for the callers who keep asking for new places.
+    'food.place.search': { minute: 10, hour: 120 },
+    // Saving a plan and replacing a pantry are cheap writes but they are writes.
+    'food.plan.create': { minute: 20, hour: 300 },
+    'food.pantry.write': { minute: 30, hour: 600 },
+};
 
 function createCallerLimits({ config, now = () => Date.now(), registry = null, log = console, enabled = true, valkey = null }) {
     const refused = registry

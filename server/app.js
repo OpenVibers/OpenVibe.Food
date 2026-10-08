@@ -4,14 +4,15 @@
  * OpenVibe.Food — Express app factory; server/index.js listens, tests build their own instance with a temp database
  * and a mock Network.
  *
- *   /, /updates                                       the pages (http/pages.js)
+ *   /, /near, /plan, /foods, /foods/:slug, /pantry, /updates   the pages (http/pages.js)
  *   /api/v1/*                                         the API (http/api.js)
  *   /auth/*                                           Network SSO with PKCE (auth/sso.js)
  *   /api/health, /api/ready, /release.json, /metrics  (loopback only)
  *
- * The product fills this in: its routes in http/api.js, its pages in http/pages.js, its capabilities in
- * http/principal.js and its budgets in http/caller-limits.js. The plumbing here (helmet, SSO, legal pages,
- * static assets, the API mount, the 404 and the error handler) stays.
+ * The product's own logic lives in server/food/: the food list (foods.js), the meal planner (planner.js), the
+ * OpenStreetMap place search and its paced, cached client (places.js, upstream.js), the pantry match and its recipes
+ * (pantry-match.js, recipes.js) and the store for plans, pantry and the geocode cache (store.js). The plumbing here
+ * (helmet, SSO, legal pages, static assets, the API mount, the 404 and the error handler) stays the skeleton's.
  */
 const path = require('path');
 const express = require('express');
@@ -26,6 +27,8 @@ const { openStore } = require('./db');
 const { createKeyStore } = require('./auth/keys');
 const { createSso } = require('./auth/sso');
 const { createPrincipal } = require('./http/principal');
+const { createUpstream } = require('./food/upstream');
+const foodStore = require('./food/store');
 const { createApi } = require('./http/api');
 const { createPageRoutes } = require('./http/pages');
 const { createServiceReadiness } = require('./observability');
@@ -50,6 +53,12 @@ async function createApp(opts = {}) {
     const sso = createSso({ config, keys, fetchImpl, now: s.now, log });
     const principal = createPrincipal({ config, keys });
     const ctx = { config, s, keys, sso, principal, log };
+    // The only outbound client this service has (Nominatim + Overpass, paced and cached); the pages and the API get
+    // it from here, so every test points it at a stand-in through FOOD_NOMINATIM_URL / FOOD_OVERPASS_URL.
+    // Its own wall clock, not the store's: the pace between two calls must not depend on an injected test clock.
+    ctx.upstream = createUpstream({ config, s, fetchImpl, log });
+    // Drop expired geocode/area answers; an expired row is ignored anyway, this only keeps the table small.
+    Promise.resolve(foodStore.cachePrune(s)).catch((err) => log.warn('[OpenVibe.Food] geo cache prune:', err && err.message));
 
     const app = express();
     app.disable('x-powered-by');

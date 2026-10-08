@@ -3,6 +3,15 @@
 // (server/http/caller-limits.js) count nobody unless a test asks: boot({ callerLimits: true, limitsNow }).
 process.env.FOOD_RATE_LIMIT_PER_MIN = process.env.FOOD_RATE_LIMIT_PER_MIN || '100000';
 process.env.FOOD_API_RATE_LIMIT_PER_MIN = process.env.FOOD_API_RATE_LIMIT_PER_MIN || '100000';
+// Outbound HTTP is never real in a test: unless a test names a stand-in (test/helpers/osm.js), the two OpenStreetMap
+// hosts point at a closed local port, so the call fails at once instead of reaching the internet.
+const OSM_OFFLINE = {
+    FOOD_NOMINATIM_URL: 'http://127.0.0.1:9/nominatim',
+    FOOD_OVERPASS_URL: 'http://127.0.0.1:9/overpass',
+    // The one-request-a-second pace is asserted by places.test.js with the policy's real second; the rest of the
+    // suite must not pay it.
+    FOOD_OSM_MIN_INTERVAL_MS: '1',
+};
 /**
  * Boots OpenVibe.Food on a temp database with a mock Network (test/helpers/mocks.js), captures every log line, and
  * returns a small HTTP client. Every test file gets its own.
@@ -27,6 +36,7 @@ async function boot(opts = {}) {
         NODE_ENV: 'test', PORT: '0', BASE_URL: 'https://openvibe.food', TRUST_PROXY: '1',
         OV_NETWORK_URL: network.url, OV_NETWORK_INTERNAL_URL: network.url,
         OV_OAUTH_CLIENT_ID: 'food', OV_OAUTH_CLIENT_SECRET: 'food-secret', COOKIE_SECURE: 'false',
+        ...OSM_OFFLINE,
         ...(opts.env || {}),
     };
     for (const [k, v] of Object.entries(opts.env || {})) if (v === null) delete env[k];

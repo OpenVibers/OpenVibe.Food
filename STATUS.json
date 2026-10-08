@@ -1,8 +1,8 @@
 {
-  "stage": "skeleton",
+  "stage": "product",
   "code": true,
   "wave": "W20",
-  "plan": "OpenVibe.Food starts from the OpenVibe service skeleton; the product's own plan is written here when it is",
+  "plan": "The food tools move here from OpenVibe.Tools (apps/maps grocery source, the food proxy app), ported as clean modules without the Walmart page scraping. The manifests' other pillars — delivery comparison and meal kits, cupboard recipes with the network's AI — are still to come.",
   "runtime": "node 22, express 4, PostgreSQL 18 (openvibe-sdk/db, async) + Valkey 9",
   "port": "4970",
   "domain": "openvibe.food",
@@ -14,32 +14,40 @@
     "openvibe-sdk v0.35.2",
     "openvibe-shared v2.14.0"
   ],
-  "summary": "OpenVibe.Food — What should we eat? A new OpenVibe service on the shared skeleton, not deployed yet: sign-in with OpenVibe.Network (OAuth 2 + PKCE, httpOnly session cookies), server-rendered pages through the OpenVibe Frame, the /api/v1 mount with per-caller limits, crawl artifacts, PostgreSQL migrations applied at boot, the nginx and systemd deploy files and a test suite on PGlite with a mock Network.",
+  "summary": "OpenVibe.Food — What should we eat? Food near you (food banks, pantries and budget grocery stores from OpenStreetMap, paced and cached to stay inside the OSM usage policies), a deterministic meal planner with a shopping list and an estimated cost, a 42-item food database with nutrition per serving and per 100 g, and a pantry with a plain 'what can I make' against ten basic recipes. Server-rendered pages, an API at /api/v1, per-caller limits on the place search, and a test suite that never calls the internet.",
   "works": [
-    "Sign-in with OpenVibe.Network (PKCE S256, server-side code exchange, httpOnly session cookies)",
-    "Server-rendered pages: the home page and /updates, through the OpenVibe Frame, complete without JavaScript",
-    "Crawl artifacts: robots.txt, sitemap.xml, llms.txt, llms-full.txt and the home page's JSON-LD",
-    "The API mount at /api/v1 with the problem+json error shape, the per-address limits and the per-caller limits",
-    "Capability verification for app, agent and service tokens (audience openvibe.food) and for a person's own token",
-    "Truthful readiness (/api/ready: the database is required) and Prometheus metrics on loopback",
-    "PostgreSQL with migrations/NNNN_*.sql (openvibe-sdk/db); PGlite in development",
-    "Deploy files: deploy/nginx/openvibe.food.conf and deploy/systemd/openvibe-food.service",
-    "Tests on a temp PGlite database with an in-process mock of OpenVibe.Network"
+    "Food near you: /near and GET /api/v1/places — a place name (Nominatim) or coordinates, food banks, soup kitchens, community fridges, free pantry boxes and budget grocery stores from Overpass, with distance, address, opening hours and operator",
+    "The OpenStreetMap attribution and the ODbL link on every result page and in every place answer, as ODbL requires",
+    "Inside the Nominatim and Overpass usage policies: the User-Agent identifies us, at most one request a second per host through an in-process queue, every answer cached in food_geo_cache for 7 days, only small around: radius queries, never a bulk download",
+    "Meal planner: /plan and POST /api/v1/plans — one person, a couple or a group for 1–14 days, all six MyPlate groups, a shopping list, the cheapest store per line and an estimated cost; deterministic, with a budget as a hard cap",
+    "Signed-in people save plans (food_plans) and keep a pantry (food_pantry)",
+    "The food list at /foods and /foods/:slug (and GET /api/v1/foods[/:slug]): nutrition per serving and per 100 g, the typical price band and the chain-by-chain comparison, server-rendered",
+    "Pantry matching: GET/PUT /api/v1/pantry and /pantry — a deterministic 'what can I make' against ten basic recipes, clearly labelled basic suggestions, no AI call",
+    "Discovery: the sitemap carries every food page, /near, /plan and /foods; llms.txt and llms-full.txt list the same set; a pantry and a saved plan are never crawled",
+    "Capabilities (food.place.read, food.food.read, food.plan.read|write, food.pantry.read|write) and per-caller limits, with the tightest budget on the place search because it spends OpenStreetMap's shared request budget",
+    "Tests with a stand-in Nominatim and Overpass: results and attribution, the one-request-a-second queue, cache hits, escaping of an OSM name, the search's per-caller limit, the plan's arithmetic, the pantry match, signed-in saves and anonymous refusals",
+    "Sign-in with OpenVibe.Network (PKCE S256, httpOnly session cookies), the OpenVibe Frame, PostgreSQL migrations applied at boot, deploy files"
   ],
   "notYet": [
-    "The product itself: its tables and migrations, its capabilities, its routes in server/http/api.js and its pages in server/http/pages.js",
-    "Its service and capability manifests in openvibe-contracts (contracts-service is food)",
-    "A deployment: the service is not registered with OpenVibe.Services nor deployed by OpenVibe.Host"
+    "Delivery-price comparison across delivery apps, and meal kits and boxes (the manifests' other pillars)",
+    "Recipes from the cupboard with the network's AI: this version is deterministic matching against ten recipes written by hand",
+    "A 'food near me' from the browser's location (only a place name or explicit coordinates today)",
+    "Fresh/live grocery prices: the price bands are typical 2025 US prices carried over from OpenVibe.Tools, not a live price",
+    "Its service and capability manifests in openvibe-contracts (contracts-service is food), and a deployment"
   ],
   "capabilitiesRegistered": false,
   "serviceManifestRegistered": false,
   "deployed": false,
   "placeholderInSites": false,
   "features": [
+    "food near you (OpenStreetMap: food banks, pantries, budget grocery stores)",
+    "meal planner with a shopping list and estimated cost",
+    "food database with nutrition per serving and per 100 g",
+    "pantry and 'what can I make'",
+    "signed-in saving of plans and pantries",
+    "public API with per-caller limits",
+    "server-rendered pages and crawl artifacts",
     "Network sign-in",
-    "server-rendered pages",
-    "api mount",
-    "limits and readiness",
     "deploy files"
   ],
   "updated": "2026-10-08"

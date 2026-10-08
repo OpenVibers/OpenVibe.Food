@@ -46,6 +46,15 @@ const rel = (p, dir) => path.relative(dir, p).split(path.sep).join('/');
 const text = (p) => fs.readFileSync(p, 'utf8');
 
 (async () => {
+    // This test is about the skeleton's generator, and only the skeleton can run it: it asserts that generating a
+    // service rewrites the placeholders, and a generated service has none left to rewrite (its package name is
+    // already its own, its vhost is already named). A generated service says so and skips, rather than reporting a
+    // failure it cannot fix — the convention openvibe-shared/test-runner reads (`<label>: skipped (<why>)`), so the
+    // file is listed with ○ and never counted as passed.
+    if (JSON.parse(text(path.join(ROOT, 'package.json'))).name !== `openvibe-${token('ID')}`) {
+        process.stdout.write('skeleton generator: skipped (this is a generated service, not the skeleton it came from; run it in OpenVibe.ServiceSkeleton)\n');
+        return done();
+    }
     const base = tmpDir('ov-new-service-');
     const dir = path.join(base, 'openvibe-sample');
     const printed = runGenerator(dir);

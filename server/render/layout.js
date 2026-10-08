@@ -24,6 +24,10 @@ const TAGLINE = 'What should we eat?';
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 // The product's own navigation: one entry per public page it serves.
 const NAV = [
+    { label: 'Food near you', href: '/near' },
+    { label: 'Meal plan', href: '/plan' },
+    { label: 'Food list', href: '/foods' },
+    { label: 'Cupboard', href: '/pantry' },
     { label: 'What shipped', href: '/updates' },
 ];
 
