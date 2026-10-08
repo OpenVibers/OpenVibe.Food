@@ -7,11 +7,11 @@
   "port": "4970",
   "domain": "openvibe.food",
   "contracts": "openvibe-contracts v0.115.0",
-  "sdk": "openvibe-sdk v0.35.2",
+  "sdk": "openvibe-sdk v0.36.0",
   "shared": "openvibe-shared v2.14.0",
   "packages": [
     "openvibe-contracts v0.115.0",
-    "openvibe-sdk v0.35.2",
+    "openvibe-sdk v0.36.0",
     "openvibe-shared v2.14.0"
   ],
   "summary": "OpenVibe.Food — What should we eat? Food near you (food banks, pantries and budget grocery stores from OpenStreetMap, paced and cached to stay inside the OSM usage policies), a deterministic meal planner with a shopping list and an estimated cost, a 42-item food database with nutrition per serving and per 100 g, and a pantry with a plain 'what can I make' against ten basic recipes. Server-rendered pages, an API at /api/v1, per-caller limits on the place search, and a test suite that never calls the internet.",
@@ -26,7 +26,8 @@
     "Discovery: the sitemap carries every food page, /near, /plan and /foods; llms.txt and llms-full.txt list the same set; a pantry and a saved plan are never crawled",
     "Capabilities (food.place.read, food.food.read, food.plan.read|write, food.pantry.read|write) and per-caller limits, with the tightest budget on the place search because it spends OpenStreetMap's shared request budget",
     "Tests with a stand-in Nominatim and Overpass: results and attribution, the one-request-a-second queue, cache hits, escaping of an OSM name, the search's per-caller limit, the plan's arithmetic, the pantry match, signed-in saves and anonymous refusals",
-    "Sign-in with OpenVibe.Network (PKCE S256, httpOnly session cookies), the OpenVibe Frame, PostgreSQL migrations applied at boot, deploy files"
+    "Sign-in with OpenVibe.Network (PKCE S256, httpOnly session cookies), the OpenVibe Frame, PostgreSQL migrations applied at boot, deploy files",
+    "Account export and deletion (ADR-033): the plans and the pantry a person saved are exported to OpenVibe.Network on network.account.export_requested and deleted whole on network.account.deleted, with the counts confirmed back; the two Events topics are subscribed at boot (server/identity/account-data.js)"
   ],
   "notYet": [
     "Delivery-price comparison across delivery apps, and meal kits and boxes (the manifests' other pillars)",

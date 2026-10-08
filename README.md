@@ -100,6 +100,28 @@ test:pg` runs the same suite through PostgreSQL and PgBouncer (see [.github/work
 - Register the service and its capabilities in **OpenVibe.Contracts** (`contracts-service: food` in CI) and with
   **OpenVibe.Services** before the first deploy.
 
+## Account export and deletion
+
+A person's account at OpenVibe.Network can be exported and deleted, and every service holding their rows answers its
+part (ADR-033). Food receives `network.account.export_requested` and `network.account.deleted` at `POST /internal/events`
+(loopback only) — the two tables are mapped in [server/identity/account-data.js](server/identity/account-data.js), and
+the boot-time subscriptions are created by [server/events-consumer.js](server/events-consumer.js):
+
+- **Exported:** the plans a person saved (`plans.json`) and their pantry (`pantry.json`), pushed to
+  `POST /internal/account-exports/:id/parts` with this service's own token. Nothing here is a secret — Food stores no
+  token, key or credential.
+- **Erased:** both tables hold the person's own rows and nothing anyone else's page hangs under them, so they are
+  deleted whole and nothing is kept. Food then confirms with `POST /internal/account-deletions/:id/confirmations` and
+  the counts.
+- **Anonymized:** nothing. There is no row Food keeps that was written by this person for another person to read.
+
+The Nominatim/Overpass cache (`food_geo_cache`) is keyed by the query, not by a person, and is neither exported nor
+erased.
+
+Environment: `FOOD_EVENTS_SECRET` (comma-separated for rotation, 32+ characters each; unset makes the route answer
+503), `FOOD_EVENTS_URL` (or `EVENTS_URL`) is where the two subscriptions are created at boot (off when unset), and
+`FOOD_EVENTS_ENDPOINT` overrides the loopback endpoint; `FOOD_EVENTS_SUBSCRIBE=0` turns the boot-time subscription off.
+
 ## Security (threat notes)
 
 Reporting a vulnerability: [SECURITY.md](SECURITY.md).
@@ -117,6 +139,6 @@ Part of the [OpenVibe network](https://openvibe.network). Built in the open by [
 
 <!-- versions:start -->
 - openvibe-contracts: v0.116.0
-- openvibe-sdk: v0.35.2
+- openvibe-sdk: v0.36.0
 - openvibe-shared: v2.15.0
 <!-- versions:end -->
