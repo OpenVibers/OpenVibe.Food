@@ -37,7 +37,7 @@ a plain POST, and every page is complete as it leaves the server.
 | `PUT /api/v1/pantry` | signed in | replace it: `{ items: ["eggs-dozen", …] }` |
 
 Public reads need no token. A person's own data (a plan, a pantry) needs a signed-in caller; an app, agent or service
-token needs the route's capability (`food.place.read`, `food.food.read`, `food.plan.read|write`,
+token needs the route's capability (`food.plan.read|write`,
 `food.pantry.read|write` — [server/http/principal.js](server/http/principal.js)). A write made with the session cookie
 must come from `openvibe.food` itself. Errors are RFC 9457 `application/problem+json` with a stable `code`.
 
@@ -116,7 +116,7 @@ Reporting a vulnerability: [SECURITY.md](SECURITY.md).
 Part of the [OpenVibe network](https://openvibe.network). Built in the open by [OpenVibers](https://github.com/OpenVibers).
 
 <!-- versions:start -->
-- openvibe-contracts: v0.115.0
+- openvibe-contracts: v0.116.0
 - openvibe-sdk: v0.35.2
-- openvibe-shared: v2.14.0
+- openvibe-shared: v2.15.0
 <!-- versions:end -->

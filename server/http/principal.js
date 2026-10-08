@@ -24,8 +24,6 @@ const PROJECT_RE = /^prj_[0-9A-HJKMNP-TV-Z]{26}$/;
 // manifests/capabilities/<food>.*. requireCapability('<name>') refuses a name that is not listed here, so a
 // route can never be guarded by a capability the service does not declare.
 const CAPABILITIES = [
-    'food.place.read',      // the place search: food banks and budget grocers near a point
-    'food.food.read',       // the food list and one food
     'food.plan.read',       // the plans a caller saved
     'food.plan.write',      // save a plan
     'food.pantry.read',     // read a caller's pantry
