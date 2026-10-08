@@ -50,14 +50,17 @@ function createPageRoutes(ctx) {
     // ODbL requires attribution wherever OSM data is shown; every result page carries it, linked back.
     const osmNote = (fetchedAt) => html`<p class="attribution small muted">Food bank and store data © <a href="${ATTRIBUTION.url}" rel="noopener">OpenStreetMap contributors</a>, available under the <a href="${ATTRIBUTION.license_url}" rel="noopener">Open Database License</a>. ${fetchedAt ? html`Fetched ${time(fetchedAt)}.` : ''} OpenVibe.Food asks OSM at most once a second and caches answers for 7 days.</p>`;
 
-    function searchForm({ q = '', kind = 'foodbank' } = {}) {
+    // The same fields everywhere; on the home page they sit in a panel beside the hero (panel: true), on /near in a row.
+    function searchForm({ q = '', kind = 'foodbank', panel = false } = {}) {
         const opt = (value, label) => html`<option value="${value}"${value === kind ? raw(' selected') : ''}>${label}</option>`;
-        return html`<form class="ov-form food-search" method="get" action="/near">
-<label for="q">Where are you?</label>
-<input id="q" name="q" type="search" placeholder="Town, city or postcode" value="${q}" maxlength="120">
-<label for="kind">Looking for</label>
-<select id="kind" name="kind">${Object.entries(KINDS).map(([v, l]) => opt(v, l))}</select>
+        return html`<form class="ov-form food-search${panel ? ' food-search-panel' : ''}" method="get" action="/near">
+${panel ? html`<p class="food-search-title">Find food near you</p>` : ''}
+<div class="food-field food-field-where"><label for="q">Where are you?</label>
+<input id="q" name="q" type="search" placeholder="Town, city or postcode" value="${q}" maxlength="120" autocomplete="address-level2"></div>
+<div class="food-field"><label for="kind">Looking for</label>
+<select id="kind" name="kind">${Object.entries(KINDS).map(([v, l]) => opt(v, l))}</select></div>
 <button class="sc-btn sc-primary" type="submit">Find food</button>
+${panel ? html`<p class="food-search-note">Free, no account. Places from OpenStreetMap.</p>` : ''}
 </form>`;
     }
 
@@ -90,7 +93,7 @@ ${res_.phone ? html`<p class="small">Phone: <a href="tel:${String(res_.phone).re
                 { label: 'The food list', href: '/foods' },
             ],
             note: 'Open source (AGPL-3.0). Places come from OpenStreetMap © contributors (ODbL); prices are typical, not live.',
-            aside: { html: String(searchForm()) },
+            aside: { html: String(searchForm({ panel: true })) },
         });
         page(req, res, {
             index: true, cache: signedIn(req) ? null : PUBLIC_CACHE,

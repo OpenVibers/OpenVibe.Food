@@ -23,7 +23,7 @@ const BUDGETS = {
     // 16.4 since the product's own pages brought their stylesheet with them (the search and plan forms, the place
     // cards, the pantry's tick list); app.css itself stayed within a few lines.
     cssRawKB: 18.0,   // 16.4
-    cssBrotliKB: 4.1,   // 3.7
+    cssBrotliKB: 4.6,     // 4.3 with the hero search panel
     externalFiles: 0,   // 0
 };
 

@@ -58,3 +58,14 @@ button.sc-btn.sc-primary { border: 0; }
 .pantry-form fieldset { border: 1px solid var(--border, #1f2d47); border-radius: 10px; margin: 10px 0; }
 .pantry-item { display: inline-block; min-width: 240px; margin: 2px 10px 2px 0; font-size: .92rem; }
 .lede { color: var(--text-secondary, #96a7c2); max-width: 72ch; }
+
+/* ── The place search: a row on /near, a panel beside the home hero ── */
+.food-search .food-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.food-search .food-field-where { flex: 1 1 260px; }
+.food-search .food-field input, .food-search .food-field select { width: 100%; min-width: 0; height: 42px; }
+.food-search > .sc-btn { height: 42px; }
+.food-search-panel { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 14px; margin: 0; padding: 22px; border-radius: 18px; border: 1px solid var(--border, #1f2d47); background: linear-gradient(160deg, color-mix(in srgb, var(--accent, #3b82f6) 9%, var(--bg-card, #131c2e)), var(--bg-card, #131c2e) 60%); box-shadow: 0 18px 40px -24px rgba(0, 0, 0, .7); }
+.food-search-panel .food-field-where { flex: none; }
+.food-search-title { margin: 0; font-size: 1.05rem; font-weight: 750; color: var(--text-primary, #e6edf7); }
+.food-search-panel > .sc-btn { width: 100%; justify-content: center; }
+.food-search-note { margin: -4px 0 0; font-size: .8rem; color: var(--text-muted, #7386a3); text-align: center; }
