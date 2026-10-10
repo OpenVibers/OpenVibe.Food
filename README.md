@@ -8,6 +8,13 @@ Delivery comparison and recipes from the network's AI (the manifests' other pill
 **Domain:** `openvibe.food` · **Port:** 4970 · **Service id:** `food` · **Env prefix:** `FOOD`
 **License:** AGPL-3.0 (same as every OpenVibe service).
 
+## Purpose
+
+OpenVibe.Food answers "what should we eat?" for a household. It finds food banks, soup kitchens, community fridges,
+free pantry boxes and budget grocery stores near a place (OpenStreetMap), plans a shop within a budget and renders the
+shopping list with an estimated cost, carries a food database with nutrition and typical price bands, and keeps a
+pantry with a deterministic "what can I make". Everything is server-rendered and works without JavaScript.
+
 ## What it does
 
 | Piece | Where | What it does |
@@ -22,6 +29,58 @@ Delivery comparison and recipes from the network's AI (the manifests' other pill
 
 Everything is server-rendered and works without JavaScript: the search is a GET form, saving a plan and a cupboard is
 a plain POST, and every page is complete as it leaves the server.
+
+## Owns
+
+Its own PostgreSQL tables, created by [migrations/](migrations/) and written by nothing else:
+
+- `food_geo_cache` (0002) — every Nominatim geocode and Overpass answer, with its TTL, so OSM is asked once for a place
+  and not once per visitor.
+- `food_plans` (0002) — a saved meal plan, exactly as the planner returned it, with its spec beside it.
+- `food_pantry` (0002) — what one person says is in their cupboard, one row per food in the list.
+- `account_data_events` (0003) — the receipts of the ADR-033 account export and deletion deliveries this service
+  applied, so a redelivered event changes nothing.
+
+0001 creates no tables. The service is the authority for these rows and for nothing else.
+
+## Does not own
+
+- **Identity and accounts** — OpenVibe.Network: sign-in (OAuth client `food`, PKCE S256), the signing keys (JWKS) and
+  the canonical subject. Food holds only `user:usr_…` on its own rows.
+- **Event delivery** — OpenVibe.Events: Food receives `network.account.export_requested` and `network.account.deleted`
+  and creates its two subscriptions at boot; it does not own the topics or the delivery.
+- **The place and store data** — OpenStreetMap through Nominatim and Overpass, © OpenStreetMap contributors under
+  ODbL 1.0; Food is a cached, attributed reader.
+- **The food list, its prices and its nutrition** — carried over from OpenVibe.Tools' grocery source, not authored or
+  live here.
+
+## Depends on
+
+- **OpenVibe.Network** — SSO sign-in and JWKS verification, and the internal routes a part or a confirmation is pushed
+  to (`OV_NETWORK_URL`, `OV_NETWORK_INTERNAL_URL`, `OV_OAUTH_CLIENT_ID`, `OV_OAUTH_CLIENT_SECRET`, `FOOD_AUDIENCE`).
+- **OpenVibe.Events** — the two account subscriptions created at boot (`FOOD_EVENTS_URL` or `EVENTS_URL`,
+  `FOOD_EVENTS_SECRET`, `FOOD_EVENTS_ENDPOINT`).
+- **Nominatim and Overpass** (OpenStreetMap, the only two hosts it fetches) — `FOOD_NOMINATIM_URL`,
+  `FOOD_OVERPASS_URL`, `FOOD_OSM_USER_AGENT`, `FOOD_OSM_MIN_INTERVAL_MS`, `FOOD_OSM_TIMEOUT_MS`,
+  `FOOD_GEO_CACHE_TTL_MS`.
+- **PostgreSQL** (`DATABASE_URL`, `DATABASE_DIRECT_URL`) and **Valkey** for shared limit counters (`VALKEY_URL`,
+  `VALKEY_PREFIX`).
+- **Packages**: `openvibe-contracts` v0.122.1, `openvibe-sdk` v0.36.0 (`db`, `auth`, `account-data`, `limits`,
+  `valkey`, `service`) and `openvibe-shared` v2.20.0 (`frame`, `legal`, `serve`, `release`, `metrics`, `ready`,
+  `seo`, `shell`, `cache-policy`, `showcase`, `app-icon`).
+
+## Capabilities
+
+The service manifest (`food`, openvibe-contracts) lists four, and [server/http/principal.js](server/http/principal.js)
+declares the same four:
+
+- `food.plan.read` — read the plans a caller saved
+- `food.plan.write` — save a plan
+- `food.pantry.read` — read a caller's pantry
+- `food.pantry.write` — replace a caller's pantry
+
+An app, agent or service token needs the one a route names; a person acting for themself needs no capability. The
+public routes (`/places`, `/foods`) name none. Food calls no capability on another service.
 
 ## API
 
@@ -90,6 +149,30 @@ fnm exec --using=22 npm run dev     # http://localhost:4970
 
 Without `DATABASE_URL` development uses an embedded PGlite database in `data/pglite` (one process only). `npm run
 test:pg` runs the same suite through PostgreSQL and PgBouncer (see [.github/workflows/ci.yml](.github/workflows/ci.yml)).
+
+## Acceptance
+
+`npm test` runs every `test/*.test.js` in its own process on a temp PGlite database with a mock Network;
+`npm run test:pg` runs the same suite through PostgreSQL and PgBouncer. No test reaches the internet — the OSM tests
+point at a stand-in ([test/helpers/osm.js](test/helpers/osm.js)). The main files:
+
+- [test/places.test.js](test/places.test.js) — the place search end to end against a stand-in OSM: results and ODbL
+  attribution, one request a second per host, the 7-day cache, escaping of a hostile OSM name, the search's budget.
+- [test/plan.test.js](test/plan.test.js) — the planner's arithmetic (deterministic, all six groups, a budget is a cap)
+  and saving a plan for the person who asked.
+- [test/foods.test.js](test/foods.test.js) — the food list, the per-100 g arithmetic and its pages and sitemap entries.
+- [test/pantry.test.js](test/pantry.test.js) — the pantry kept per account, the deterministic "what can I make", and
+  anonymous callers refused.
+- [test/account-data.test.js](test/account-data.test.js) — ADR-033 export and deletion through `/internal/events`,
+  applied once and carrying only that person's rows, with a bad signature refused.
+- [test/caller-limits.test.js](test/caller-limits.test.js), [test/auth-jwks.test.js](test/auth-jwks.test.js),
+  [test/security-secrets.test.js](test/security-secrets.test.js), [test/security-session.test.js](test/security-session.test.js),
+  [test/open-redirect.test.js](test/open-redirect.test.js), [test/no-internal-key.test.js](test/no-internal-key.test.js),
+  [test/discovery.test.js](test/discovery.test.js), [test/layout.test.js](test/layout.test.js),
+  [test/service-kit.test.js](test/service-kit.test.js), [test/nginx-auth-limit.test.js](test/nginx-auth-limit.test.js),
+  [test/perf-budget.test.js](test/perf-budget.test.js), [test/asset-cache.test.js](test/asset-cache.test.js) — limits,
+  auth, secret-leak and redirect regressions, crawl artifacts, page layout, graceful stop, nginx zones and size
+  budgets.
 
 ## Deploy (for the lead)
 
