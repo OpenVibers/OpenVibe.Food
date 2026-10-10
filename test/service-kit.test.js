@@ -52,5 +52,24 @@ const listen = (server) => new Promise((resolve) => server.listen(0, '127.0.0.1'
         assert.strictEqual(exits, 1);
     });
 
+    await check('the app\'s prune timer on ctx is cleared on stop, even when no timers are passed', async () => {
+        let ticks = 0;
+        const timer = setInterval(() => { ticks += 1; }, 20);
+        const ctx = {
+            geoPruneTimer: timer,
+            keys: { client: { stop: () => {} } },
+            s: { close: async () => {} },
+        };
+        const server = http.createServer((req, res) => res.end('ok'));
+        await listen(server);
+
+        const lifecycle = createLifecycle({ server, ctx, exit: () => {}, signals: false });
+        await lifecycle.stop('SIGTERM');
+        const stopped = ticks;
+        await new Promise((r) => setTimeout(r, 80));
+        assert.strictEqual(ticks, stopped, 'the prune timer no longer ticks after the stop');
+        assert.strictEqual(server.listening, false);
+    });
+
     done();
 })().catch((err) => { console.error(err); process.exit(1); });

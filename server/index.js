@@ -10,12 +10,14 @@ const { gracefulStop } = require('openvibe-sdk/service');
 /**
  * The process stop (openvibe-sdk/service): the HTTP drain runs, then the timers clear, the Events subscriptions stop,
  * the JWKS refresher stops and the store closes. Exported so a test can inject `exit` and `signals: false`. `extra` is
- * what the product adds (the Events subscriptions); a test that passes none keeps the skeleton's order.
+ * what the product adds (the Events subscriptions); `timers` defaults to the app's own (ctx.geoPruneTimer) and a test
+ * that passes none keeps the skeleton's order.
  */
-function createLifecycle({ server, ctx, exit, signals, timers = [], extra = [] }) {
+function createLifecycle({ server, ctx, exit, signals, timers, extra = [] }) {
+    const clearTimers = timers || [ctx.geoPruneTimer].filter(Boolean);
     return gracefulStop({
         name: 'OpenVibe.Food', server, deadlineExitCode: 0, exit, signals, deadlineMs: 10_000,
-        close: [() => { for (const t of timers) clearInterval(t); }, () => ctx.keys.client.stop(), () => ctx.s.close(), ...extra],
+        close: [() => { for (const t of clearTimers) clearInterval(t); }, () => ctx.keys.client.stop(), () => ctx.s.close(), ...extra],
     });
 }
 

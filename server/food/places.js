@@ -60,6 +60,21 @@ const isBudgetStore = (tags) => {
     return BUDGET_BRANDS.some((re) => re.test(brand));
 };
 
+/**
+ * An OpenStreetMap-supplied URL, kept only when it parses and speaks http(s). A mapped element's website is
+ * attacker-controlled (anyone may edit OSM): a `javascript:` or `data:` URL must never become an <a href>, so
+ * anything but http/https is dropped at the source here, and again where the href is rendered (server/http/pages.js).
+ */
+function safeUrl(v) {
+    if (typeof v !== 'string' || !v.trim()) return null;
+    try {
+        const u = new URL(v.trim());
+        return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : null;
+    } catch {
+        return null;
+    }
+}
+
 /** The Overpass query for one kind, bounded to `radiusM` metres around one point. Never a bulk download. */
 function queryFor(kind, lat, lon, radiusM) {
     const around = `(around:${radiusM},${lat},${lon})`;
@@ -102,7 +117,7 @@ function toResult(el, kind, origin) {
         opening_hours: tags.opening_hours || null,
         operator: tags.operator || null,
         phone: tags.phone || tags['contact:phone'] || null,
-        website: tags.website || tags['contact:website'] || null,
+        website: safeUrl(tags.website || tags['contact:website'] || tags.url),
         wheelchair: tags.wheelchair === 'yes' ? true : tags.wheelchair === 'no' ? false : null,
         budget: kind === 'grocery' ? isBudgetStore(tags) : (tags.fee === 'yes' ? false : null),
     };
@@ -184,4 +199,4 @@ async function searchPlaces(upstream, { kind = 'foodbank', q = null, lat = null,
     };
 }
 
-module.exports = { searchPlaces, haversineKm, formatAddress, isBudgetStore, queryFor, elementsToResults, ATTRIBUTION, SOURCE, FOOD_BANK_TYPES, KINDS };
+module.exports = { searchPlaces, haversineKm, formatAddress, isBudgetStore, safeUrl, queryFor, elementsToResults, ATTRIBUTION, SOURCE, FOOD_BANK_TYPES, KINDS };
