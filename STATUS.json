@@ -39,7 +39,7 @@
   ],
   "capabilitiesRegistered": false,
   "serviceManifestRegistered": false,
-  "deployed": false,
+  "deployed": true,
   "placeholderInSites": false,
   "features": [
     "food near you (OpenStreetMap: food banks, pantries, budget grocery stores)",
@@ -52,5 +52,6 @@
     "Network sign-in",
     "deploy files"
   ],
-  "updated": "2026-10-10"
+  "updated": "2026-10-10",
+  "deployment": "openvibe-ovh: unit openvibe-food.service on 127.0.0.1:4970 (git checkout /opt/openvibe.food, env /etc/openvibe/food.env, database ov_food), deployed with `sudo ovhost deploy food`; public at https://openvibe.food since 2026-10-08."
 }
