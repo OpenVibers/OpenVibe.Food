@@ -66,7 +66,7 @@ Its own PostgreSQL tables, created by [migrations/](migrations/) and written by 
 - **PostgreSQL** (`DATABASE_URL`, `DATABASE_DIRECT_URL`) and **Valkey** for shared limit counters (`VALKEY_URL`,
   `VALKEY_PREFIX`).
 - **Packages**: `openvibe-contracts` v0.122.1, `openvibe-sdk` v0.36.0 (`db`, `auth`, `account-data`, `limits`,
-  `valkey`, `service`) and `openvibe-shared` v2.20.3 (`frame`, `legal`, `serve`, `release`, `metrics`, `ready`,
+  `valkey`, `service`) and `openvibe-shared` v2.20.4 (`frame`, `legal`, `serve`, `release`, `metrics`, `ready`,
   `seo`, `shell`, `cache-policy`, `showcase`, `app-icon`).
 
 ## Capabilities
@@ -223,5 +223,5 @@ Part of the [OpenVibe network](https://openvibe.network). Built in the open by [
 <!-- versions:start -->
 - openvibe-contracts: v0.127.0
 - openvibe-sdk: v0.36.0
-- openvibe-shared: v2.20.3
+- openvibe-shared: v2.20.4
 <!-- versions:end -->
