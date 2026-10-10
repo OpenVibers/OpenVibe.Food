@@ -9,11 +9,11 @@
   "domain": "openvibe.food",
   "contracts": "openvibe-contracts v0.127.0",
   "sdk": "openvibe-sdk v0.37.2",
-  "shared": "openvibe-shared v2.21.2",
+  "shared": "openvibe-shared v3.0.0",
   "packages": [
     "openvibe-contracts v0.127.0",
     "openvibe-sdk v0.37.2",
-    "openvibe-shared v2.21.2"
+    "openvibe-shared v3.0.0"
   ],
   "summary": "OpenVibe.Food — What should we eat? Food near you (food banks, pantries and budget grocery stores from OpenStreetMap, paced and cached to stay inside the OSM usage policies), a deterministic meal planner with a shopping list and an estimated cost, a 42-item food database with nutrition per serving and per 100 g, and a pantry with a plain 'what can I make' against ten basic recipes. Server-rendered pages, an API at /api/v1, per-caller limits on the place search, and a test suite that never calls the internet.",
   "works": [
@@ -52,6 +52,6 @@
     "Network sign-in",
     "deploy files"
   ],
-  "updated": "2026-10-10",
-  "deployment": "openvibe-ovh: unit openvibe-food.service on 127.0.0.1:4970 (git checkout /opt/openvibe.food, env /etc/openvibe/food.env, database ov_food), deployed with `sudo ovhost deploy food`; public at https://openvibe.food since 2026-10-08."
+  "deployment": "openvibe-ovh: unit openvibe-food.service on 127.0.0.1:4970 (git checkout /opt/openvibe.food, env /etc/openvibe/food.env, database ov_food), deployed with `sudo ovhost deploy food`; public at https://openvibe.food since 2026-10-08.",
+  "updated": "2026-10-10"
 }
