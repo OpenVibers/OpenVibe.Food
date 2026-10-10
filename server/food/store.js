@@ -29,6 +29,20 @@ async function cachePut(s, key, body, ttlMs) {
 /** Drop expired rows (called at boot; the table stays small because every answer is bounded). */
 const cachePrune = (s) => s.db.exec('DELETE FROM food_geo_cache WHERE expires_at <= $1', [s.iso()]);
 
+/**
+ * Prune the geo cache now, then hourly: an expired row is ignored anyway, this only keeps the table small. The
+ * interval is unref'd so it never holds the process open; the returned timer is what the entry point clears on
+ * shutdown (server/index.js). This repository has no restore-drill mode; if one is added it must skip this timer,
+ * because a drill reads a restored database and must not write to it.
+ */
+function startCachePrune(s, { intervalMs = 60 * 60 * 1000, log = console } = {}) {
+    const tick = () => Promise.resolve(cachePrune(s)).catch((err) => log.warn('[OpenVibe.Food] geo cache prune:', err && err.message));
+    tick();
+    const timer = setInterval(tick, intervalMs);
+    if (typeof timer.unref === 'function') timer.unref();
+    return timer;
+}
+
 // ── food_plans ───────────────────────────────────────────────
 async function insertPlan(s, p) {
     await s.db.query(
@@ -61,7 +75,7 @@ async function setPantry(s, owner, items) {
 }
 
 module.exports = {
-    cacheGet, cachePut, cachePrune,
+    cacheGet, cachePut, cachePrune, startCachePrune,
     insertPlan, planRow, listPlans, deletePlan, planToWire,
     getPantry, pantryRows, setPantry,
 };

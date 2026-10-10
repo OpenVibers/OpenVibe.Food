@@ -59,8 +59,9 @@ async function createApp(opts = {}) {
     // it from here, so every test points it at a stand-in through FOOD_NOMINATIM_URL / FOOD_OVERPASS_URL.
     // Its own wall clock, not the store's: the pace between two calls must not depend on an injected test clock.
     ctx.upstream = createUpstream({ config, s, fetchImpl, log });
-    // Drop expired geocode/area answers; an expired row is ignored anyway, this only keeps the table small.
-    Promise.resolve(foodStore.cachePrune(s)).catch((err) => log.warn('[OpenVibe.Food] geo cache prune:', err && err.message));
+    // Drop expired geocode/area answers now and hourly; an expired row is ignored anyway, this only keeps the table
+    // small. The interval is unref'd and kept on ctx so the entry point clears it on shutdown (server/index.js).
+    ctx.geoPruneTimer = foodStore.startCachePrune(s, { log });
 
     // Account export and deletion (ADR-033, ./identity/account-data.js): the two tables that hold a person's rows.
     // The sender posts to Network's internal export/deletion routes with this service's own client-credentials token;

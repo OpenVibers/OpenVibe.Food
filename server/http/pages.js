@@ -26,7 +26,7 @@ const { html, raw, table, notice, time, badge } = require('../render/html');
 const { send } = require('../render/layout');
 const foods = require('../food/foods');
 const { planMeals } = require('../food/planner');
-const { searchPlaces, ATTRIBUTION } = require('../food/places');
+const { searchPlaces, safeUrl, ATTRIBUTION } = require('../food/places');
 const { matchPantry } = require('../food/pantry-match');
 const store = require('../food/store');
 
@@ -39,7 +39,7 @@ const km = (n) => `${Number(n).toFixed(1)} km`;
 const str = (v, max = 120) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 
 function createPageRoutes(ctx) {
-    const { config, s } = ctx;
+    const { config, s, limits } = ctx;
     const r = asyncRouter();
     const PUBLIC_CACHE = cache.htmlHeaders({ maxAge: 300 });
     const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
@@ -65,12 +65,15 @@ ${panel ? html`<p class="food-search-note">Free, no account. Places from OpenStr
     }
 
     function placeRow(res_) {
+        // The source already drops a non-http(s) website from OSM (server/food/places.js); checked again here, so a
+        // hostile or stale value can never reach an href. Anything but a safe URL simply shows no website link.
+        const website = safeUrl(res_.website);
         return html`<li class="place" id="${res_.id}">
 <p class="place-name"><b>${res_.name}</b> ${badge(res_.type_label)} ${res_.budget === true ? badge('budget', 'ok') : ''}</p>
 <p class="muted small">${km(res_.distance_km)} away${res_.address ? html` · ${res_.address}` : ''}${res_.operator ? html` · run by ${res_.operator}` : ''}</p>
 ${res_.opening_hours ? html`<p class="small">Opening hours: ${res_.opening_hours}</p>` : ''}
 ${res_.phone ? html`<p class="small">Phone: <a href="tel:${String(res_.phone).replace(/[^\d+]/g, '')}">${res_.phone}</a></p>` : ''}
-<p class="small">${res_.website ? html`<a href="${res_.website}" rel="noopener nofollow">Their website</a> · ` : ''}<a href="${res_.osm_url}" rel="noopener nofollow">View on OpenStreetMap</a>${res_.wheelchair === true ? html` · wheelchair accessible` : ''}</p>
+<p class="small">${website ? html`<a href="${website}" rel="noopener nofollow">Their website</a> · ` : ''}<a href="${res_.osm_url}" rel="noopener nofollow">View on OpenStreetMap</a>${res_.wheelchair === true ? html` · wheelchair accessible` : ''}</p>
 </li>`;
     }
 
@@ -119,15 +122,20 @@ ${raw(showcase.cta({
     });
 
     // ── Food near you ────────────────────────────────────────
-    r.get('/near', async (req, res) => {
+    const queryNum = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
+    // A page load only costs the shared OpenStreetMap budget when it will actually search.
+    const wantsSearch = (req) => !!str(req.query.q) || (queryNum(req.query.lat) != null && queryNum(req.query.lon) != null);
+
+    async function nearPage(req, res, { limited = false } = {}) {
         const q = str(req.query.q);
         const kind = KINDS[req.query.kind] ? req.query.kind : 'foodbank';
-        const num = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
         let out = null;
         let problem = null;
-        if (q || (num(req.query.lat) != null && num(req.query.lon) != null)) {
+        if (limited) {
+            problem = 'Too many searches from you just now. Try again in a minute.';
+        } else if (wantsSearch(req)) {
             try {
-                out = await searchPlaces(ctx.upstream, { kind, q, lat: num(req.query.lat), lon: num(req.query.lon), radiusKm: num(req.query.radius) }, config);
+                out = await searchPlaces(ctx.upstream, { kind, q, lat: queryNum(req.query.lat), lon: queryNum(req.query.lon), radiusKm: queryNum(req.query.radius) }, config);
             } catch (err) {
                 problem = err && err.code ? err.message : 'The place search is unavailable right now. Try again in a few minutes.';
             }
@@ -146,7 +154,27 @@ ${out ? html`<section class="near-results">
 ${resultsBlock(out)}
 ${osmNote(out.fetched_at)}
 </section>` : html`<p class="muted">Search for a town, a city or a postcode above — or link here with <code>?lat=</code> and <code>?lon=</code> from a map.</p>`}`,
-        });
+        }, limited ? 429 : 200);
+    }
+
+    // The search on this page spends the same per-caller budget the API does (server/http/caller-limits.js), so a
+    // script cannot reach OpenStreetMap through the HTML route while the API is limited. The budget runs before the
+    // search; over it, the limiter's refusal is turned into the page's normal message (a 429 page), not its JSON.
+    const placeSearch = limits.budget('food.place.search');
+    r.get('/near', (req, res) => {
+        if (!wantsSearch(req)) return nearPage(req, res);
+        let settled = false;
+        let retryAfter = '60';
+        const allowed = () => { if (!settled) { settled = true; nearPage(req, res); } };
+        const refused = () => {
+            if (settled) return;
+            settled = true;
+            res.set('Retry-After', retryAfter);
+            nearPage(req, res, { limited: true });
+        };
+        // The limiter calls next when the caller is under budget, or ends the response itself when over it; it is
+        // handed a stand-in response so a refusal cannot write its JSON problem onto this HTML route.
+        placeSearch(req, { statusCode: 200, setHeader: (k, v) => { if (String(k).toLowerCase() === 'retry-after') retryAfter = String(v); }, end: refused }, allowed);
     });
 
     // ── Meal plan ────────────────────────────────────────────
