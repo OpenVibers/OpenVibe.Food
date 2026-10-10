@@ -9,11 +9,11 @@
   "domain": "openvibe.food",
   "contracts": "openvibe-contracts v0.127.0",
   "sdk": "openvibe-sdk v0.37.2",
-  "shared": "openvibe-shared v2.21.1",
+  "shared": "openvibe-shared v2.21.2",
   "packages": [
     "openvibe-contracts v0.127.0",
     "openvibe-sdk v0.37.2",
-    "openvibe-shared v2.21.1"
+    "openvibe-shared v2.21.2"
   ],
   "summary": "OpenVibe.Food — What should we eat? Food near you (food banks, pantries and budget grocery stores from OpenStreetMap, paced and cached to stay inside the OSM usage policies), a deterministic meal planner with a shopping list and an estimated cost, a 42-item food database with nutrition per serving and per 100 g, and a pantry with a plain 'what can I make' against ten basic recipes. Server-rendered pages, an API at /api/v1, per-caller limits on the place search, and a test suite that never calls the internet.",
   "works": [
