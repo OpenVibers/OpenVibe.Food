@@ -38,7 +38,7 @@
     "Its service and capability manifests in openvibe-contracts (contracts-service is food), and a deployment"
   ],
   "capabilitiesRegistered": false,
-  "serviceManifestRegistered": false,
+  "serviceManifestRegistered": true,
   "deployed": true,
   "placeholderInSites": false,
   "features": [
