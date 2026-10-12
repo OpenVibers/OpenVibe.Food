@@ -2,8 +2,8 @@
 
 > What should we eat?
 
-**Status:** the product works — food near you, a meal planner, the food database and the pantry are live and tested.
-Delivery comparison and recipes from the network's AI (the manifests' other pillars) are not built yet.
+**Status:** the product works — food near you, a meal planner, the food database, the pantry and recipe ideas from the network's AI are live and tested.
+Delivery comparison (the manifests' remaining pillar) is not built yet.
 
 **Domain:** `openvibe.food` · **Port:** 4970 · **Service id:** `food` · **Env prefix:** `FOOD`
 **License:** AGPL-3.0 (same as every OpenVibe service).
@@ -23,8 +23,9 @@ pantry with a deterministic "what can I make". Everything is server-rendered and
 | Meal planner | [/plan](server/http/pages.js), [server/food/planner.js](server/food/planner.js) | One person, a couple or a group, 1–14 days: one item from each of the six USDA MyPlate food groups, cheapest per gram first, then the best calories a dollar, with a shopping list, the cheapest store per line and an estimated cost. Deterministic, and a budget is a hard cap |
 | Food database | [/foods, /foods/:slug](server/http/pages.js), [server/food/foods.js](server/food/foods.js) | 42 items with nutrition per serving and per 100 g, the typical price band and the chain-by-chain comparison; server-rendered and in the sitemap |
 | Pantry | [/pantry](server/http/pages.js), [server/food/pantry-match.js](server/food/pantry-match.js) | Signed in, keep what is in your cupboard and see which basic recipes you can make now, and what one more item would unlock. Deterministic; no model call |
+| Recipe ideas | [/recipes](server/http/pages.js), [server/food/recipes.js](server/food/recipes.js) | Signed in, ask OpenVibe.AI's `food.suggest_recipes` workflow for ideas from your pantry; Food validates the answer against its own food list and prices the to-buy items from its typical prices. Clearly labelled AI-suggested |
 | The OpenStreetMap client | [server/food/upstream.js](server/food/upstream.js) | The only outbound calls this service makes: paced, cached, identified, bounded |
-| Store | [server/food/store.js](server/food/store.js), [migrations/](migrations/) | `food_geo_cache`, `food_plans`, `food_pantry` |
+| Store | [server/food/store.js](server/food/store.js), [migrations/](migrations/) | `food_geo_cache`, `food_plans`, `food_pantry`, `food_recipe_suggestions` |
 | Platform | the skeleton | Sign-in with OpenVibe.Network, the OpenVibe Frame, limits, readiness, discovery, deploy files |
 
 Everything is server-rendered and works without JavaScript: the search is a GET form, saving a plan and a cupboard is
@@ -40,6 +41,8 @@ Its own PostgreSQL tables, created by [migrations/](migrations/) and written by 
 - `food_pantry` (0002) — what one person says is in their cupboard, one row per food in the list.
 - `account_data_events` (0003) — the receipts of the ADR-033 account export and deletion deliveries this service
   applied, so a redelivered event changes nothing.
+- `food_recipe_suggestions` (0004) — a person's recipe ideas from OpenVibe.AI (the validated output plus Food's own
+  to-buy costs), keeping the last 20 per person.
 
 0001 creates no tables. The service is the authority for these rows and for nothing else.
 
@@ -60,24 +63,28 @@ Its own PostgreSQL tables, created by [migrations/](migrations/) and written by 
   to (`OV_NETWORK_URL`, `OV_NETWORK_INTERNAL_URL`, `OV_OAUTH_CLIENT_ID`, `OV_OAUTH_CLIENT_SECRET`, `FOOD_AUDIENCE`).
 - **OpenVibe.Events** — the two account subscriptions created at boot (`FOOD_EVENTS_URL` or `EVENTS_URL`,
   `FOOD_EVENTS_SECRET`, `FOOD_EVENTS_ENDPOINT`).
+- **OpenVibe.AI** — the `food.suggest_recipes` workflow for recipe ideas from a pantry (`OV_AI_INTERNAL_URL`, plus
+  Food's OAuth client id and secret; the feature is off when `OV_AI_INTERNAL_URL` is unset).
 - **Nominatim and Overpass** (OpenStreetMap, the only two hosts it fetches) — `FOOD_NOMINATIM_URL`,
   `FOOD_OVERPASS_URL`, `FOOD_OSM_USER_AGENT`, `FOOD_OSM_MIN_INTERVAL_MS`, `FOOD_OSM_TIMEOUT_MS`,
   `FOOD_GEO_CACHE_TTL_MS`.
 - **PostgreSQL** (`DATABASE_URL`, `DATABASE_DIRECT_URL`) and **Valkey** for shared limit counters (`VALKEY_URL`,
   `VALKEY_PREFIX`).
 - **Packages**: `openvibe-contracts` v0.122.1, `openvibe-sdk` v0.44.0 (`db`, `auth`, `account-data`, `limits`,
-  `valkey`, `service`) and `openvibe-shared` v4.0.2 (`frame`, `legal`, `serve`, `release`, `metrics`, `ready`,
-  `seo`, `shell`, `cache-policy`, `showcase`, `app-icon`).
+  `valkey`, `service`), `openvibe-publishing` (`ai`) and `openvibe-shared` v4.0.2 (`frame`, `legal`, `serve`,
+  `release`, `metrics`, `ready`, `seo`, `shell`, `cache-policy`, `showcase`, `app-icon`).
 
 ## Capabilities
 
 The service manifest (`food`, openvibe-contracts) lists four, and [server/http/principal.js](server/http/principal.js)
-declares the same four:
+declares the same four plus one proposed:
 
 - `food.plan.read` — read the plans a caller saved
 - `food.plan.write` — save a plan
 - `food.pantry.read` — read a caller's pantry
 - `food.pantry.write` — replace a caller's pantry
+- `food.recipes.suggest` — ask the network's AI for recipe ideas from a caller's pantry (proposed; not yet registered
+  in openvibe-contracts, so an app token cannot be granted it until the manifest ships)
 
 An app, agent or service token needs the one a route names; a person acting for themself needs no capability. The
 public routes (`/places`, `/foods`) name none. Food calls no capability on another service.
@@ -94,15 +101,19 @@ public routes (`/places`, `/foods`) name none. Food calls no capability on anoth
 | `GET /api/v1/plans`, `GET /api/v1/plans/:id` | signed in | your plans, newest first |
 | `GET /api/v1/pantry` | signed in | your cupboard, with the "what can I make" suggestions |
 | `PUT /api/v1/pantry` | signed in | replace it: `{ items: ["eggs-dozen", …] }` |
+| `POST /api/v1/recipes/suggest` | signed in | ask the AI for recipes from your pantry: `{ ask?, people? }` → 201 with the saved suggestion |
+| `GET /api/v1/recipes` | signed in | your recent recipe suggestions, newest first |
 
-Public reads need no token. A person's own data (a plan, a pantry) needs a signed-in caller; an app, agent or service
-token needs the route's capability (`food.plan.read|write`,
-`food.pantry.read|write` — [server/http/principal.js](server/http/principal.js)). A write made with the session cookie
-must come from `openvibe.food` itself. Errors are RFC 9457 `application/problem+json` with a stable `code`.
+Public reads need no token. A person's own data (a plan, a pantry, recipe ideas) needs a signed-in caller; an app,
+agent or service token needs the route's capability (`food.plan.read|write`,
+`food.pantry.read|write`, `food.recipes.suggest` — [server/http/principal.js](server/http/principal.js)). A write made
+with the session cookie must come from `openvibe.food` itself. Errors are RFC 9457 `application/problem+json` with a
+stable `code`. With `OV_AI_INTERNAL_URL` unset, asking for recipes answers 503 `food.ai_off`.
 
 **Per-caller limits** ([server/http/caller-limits.js](server/http/caller-limits.js)): reads take `FOOD_LIMITS_MINUTE` /
 `FOOD_LIMITS_HOUR`; the place search, which spends OpenStreetMap's shared request budget, has its own tighter numbers,
-as do saving a plan and replacing a pantry.
+as do saving a plan and replacing a pantry. Recipe suggestions are capped at 10 a person a day (429
+`food.recipes_daily_limit`).
 
 ## Data sources and their terms
 
@@ -133,11 +144,17 @@ The nutrition figures are the source's, not analysed here, and are not dietary a
 **Recipes** — ten simple combinations written for this service in plain words, using only items from the food list.
 No copied recipe text. They are labelled "basic suggestions" wherever they appear.
 
+**Recipe ideas** — a signed-in person can ask OpenVibe.AI's `food.suggest_recipes` workflow for ideas from their
+pantry. Food sends the pantry and the rows of its own food list as sources, validates what comes back (an ingredient
+must be from the pantry or cite one of those sources), and prices only the to-buy items from its own typical prices —
+never from anything the AI said. The page says plainly the recipes were suggested by AI and should be checked.
+
 ## Configuration
 
 See [.env.example](.env.example). Required in production: `OV_OAUTH_CLIENT_SECRET` (the `food` OAuth client on the
-Network), `BASE_URL`, `DATABASE_URL` and `DATABASE_DIRECT_URL`. `FOOD_NOMINATIM_URL` and `FOOD_OVERPASS_URL` default
-to the public OSM hosts; tests point them at a stand-in and never reach the internet.
+Network), `BASE_URL`, `DATABASE_URL` and `DATABASE_DIRECT_URL`. `OV_AI_INTERNAL_URL` (the internal OpenVibe.AI URL)
+turns the recipe ideas feature on; unset, the recipe routes answer 503 `food.ai_off`. `FOOD_NOMINATIM_URL` and
+`FOOD_OVERPASS_URL` default to the public OSM hosts; tests point them at a stand-in and never reach the internet.
 
 ## Development
 
@@ -163,6 +180,9 @@ point at a stand-in ([test/helpers/osm.js](test/helpers/osm.js)). The main files
 - [test/foods.test.js](test/foods.test.js) — the food list, the per-100 g arithmetic and its pages and sitemap entries.
 - [test/pantry.test.js](test/pantry.test.js) — the pantry kept per account, the deterministic "what can I make", and
   anonymous callers refused.
+- [test/recipes.test.js](test/recipes.test.js) — the AI recipe request and output validation, Food's own to-buy cost,
+  the last-20 cap, the daily limit, the AI-off and empty-pantry problems, AiRunError pass-through, the capability
+  check, and the page signed in and out.
 - [test/account-data.test.js](test/account-data.test.js) — ADR-033 export and deletion through `/internal/events`,
   applied once and carrying only that person's rows, with a bad signature refused.
 - [test/caller-limits.test.js](test/caller-limits.test.js), [test/auth-jwks.test.js](test/auth-jwks.test.js),
@@ -187,13 +207,13 @@ point at a stand-in ([test/helpers/osm.js](test/helpers/osm.js)). The main files
 
 A person's account at OpenVibe.Network can be exported and deleted, and every service holding their rows answers its
 part (ADR-033). Food receives `network.account.export_requested` and `network.account.deleted` at `POST /internal/events`
-(loopback only) — the two tables are mapped in [server/identity/account-data.js](server/identity/account-data.js), and
+(loopback only) — the three tables are mapped in [server/identity/account-data.js](server/identity/account-data.js), and
 the boot-time subscriptions are created by [server/events-consumer.js](server/events-consumer.js):
 
-- **Exported:** the plans a person saved (`plans.json`) and their pantry (`pantry.json`), pushed to
-  `POST /internal/account-exports/:id/parts` with this service's own token. Nothing here is a secret — Food stores no
-  token, key or credential.
-- **Erased:** both tables hold the person's own rows and nothing anyone else's page hangs under them, so they are
+- **Exported:** the plans a person saved (`plans.json`), their pantry (`pantry.json`) and their recipe suggestions
+  (`recipe-suggestions.json`), pushed to `POST /internal/account-exports/:id/parts` with this service's own token.
+  Nothing here is a secret — Food stores no token, key or credential.
+- **Erased:** all three tables hold the person's own rows and nothing anyone else's page hangs under them, so they are
   deleted whole and nothing is kept. Food then confirms with `POST /internal/account-deletions/:id/confirmations` and
   the counts.
 - **Anonymized:** nothing. There is no row Food keeps that was written by this person for another person to read.
@@ -212,9 +232,9 @@ Reporting a vulnerability: [SECURITY.md](SECURITY.md).
 - Session tokens are httpOnly cookies; a FedCM assertion or an app or service token is never a session.
 - Secrets live only in the env file; only environment variable names appear in code and docs, and no secret is logged.
 - Request bodies are never logged.
-- The only two hosts this service fetches are the OSM ones named in the configuration: a URL built from that base, and
-  nothing a caller sends. A place name is data in a query string, never a URL.
-- Nothing a person keeps here (a plan, a pantry) is public, cached or crawled.
+- The only hosts this service fetches are the OSM ones and OpenVibe.AI named in the configuration: a URL built from
+  those bases, and nothing a caller sends. A place name is data in a query string, never a URL.
+- Nothing a person keeps here (a plan, a pantry, recipe ideas) is public, cached or crawled.
 
 ---
 
@@ -224,4 +244,5 @@ Part of the [OpenVibe network](https://openvibe.network). Built in the open by [
 - openvibe-contracts: v0.143.0
 - openvibe-sdk: v0.44.0
 - openvibe-shared: v4.0.2
+- openvibe-publishing: v1.4.0
 <!-- versions:end -->

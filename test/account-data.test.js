@@ -49,6 +49,7 @@ async function makeRows(t, subject, title) {
     const s = t.ctx.s;
     await foodStore.insertPlan(s, { id: s.newId('pln'), owner: `user:${subject}`, title, people: 2, days: 3, budget: null, plan: { days: [{ items: [title] }] }, created_at: s.iso() });
     await foodStore.setPantry(s, `user:${subject}`, [title]);
+    await foodStore.insertRecipeSuggestion(s, { id: s.newId('rcp'), subject_id: `user:${subject}`, created_at: s.iso(), ask: `ask-${title}`, people: 2, ai_run_id: 'run_1', recipes: [{ title }] });
 }
 
 (async () => {
@@ -68,10 +69,13 @@ async function makeRows(t, subject, title) {
             assert.ok(part, 'the part was pushed to Network');
             assert.strictEqual(part.auth, 'Bearer tok_food', 'with this service\'s own token');
             assert.strictEqual(part.body.subject, A);
-            assert.deepStrictEqual(part.body.files.map((f) => f.name).sort(), ['pantry.json', 'plans.json']);
+            assert.deepStrictEqual(part.body.files.map((f) => f.name).sort(), ['pantry.json', 'plans.json', 'recipe-suggestions.json']);
             const plans = part.body.files.find((f) => f.name === 'plans.json').content;
             assert.strictEqual(plans.length, 1);
             assert.strictEqual(plans[0].title, 'person-a');
+            const suggestions = part.body.files.find((f) => f.name === 'recipe-suggestions.json').content;
+            assert.strictEqual(suggestions.length, 1);
+            assert.strictEqual(suggestions[0].ask, 'ask-person-a');
             assert.ok(!JSON.stringify(part.body).includes('person-b'), 'nobody else\'s rows');
             assert.ok(!/token|secret|password/i.test(JSON.stringify(part.body)), 'no secret is exported');
         } finally { await t.close(); await stub.close(); }
@@ -91,11 +95,12 @@ async function makeRows(t, subject, title) {
             assert.strictEqual(res.json().outcome, 'erased');
             assert.strictEqual(await gone(A), 0, 'the person\'s plans are gone');
             assert.strictEqual(await t.ctx.s.db.value('SELECT count(*)::int FROM food_pantry WHERE owner = $1', [`user:${A}`]), 0, 'the pantry is gone');
+            assert.strictEqual(await t.ctx.s.db.value('SELECT count(*)::int FROM food_recipe_suggestions WHERE subject_id = $1', [`user:${A}`]), 0, 'the recipe suggestions are gone');
             assert.strictEqual(await gone(B), 1, 'someone else\'s plan stays');
 
             const confirmation = stub.calls.find((c) => c.url === `/internal/account-deletions/${DEL}/confirmations`);
             assert.ok(confirmation, 'the confirmation was sent');
-            assert.deepStrictEqual(confirmation.body.erased, { food_plans: 1, food_pantry: 1 });
+            assert.deepStrictEqual(confirmation.body.erased, { food_plans: 1, food_pantry: 1, food_recipe_suggestions: 1 });
             assert.deepStrictEqual(confirmation.body.retained, {});
             assert.ok(!Number.isNaN(Date.parse(confirmation.body.completed_at)));
 

@@ -24,6 +24,7 @@ const foods = require('../food/foods');
 const { planMeals } = require('../food/planner');
 const { searchPlaces } = require('../food/places');
 const { matchPantry } = require('../food/pantry-match');
+const { suggestRecipes } = require('../food/recipes');
 const store = require('../food/store');
 
 const PLAN_ID = /^pln_[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -145,6 +146,48 @@ function createApi(ctx) {
         const unknown = items.filter((slug) => !foods.getFood(slug));
         if (unknown.length) return fail(req, res, 422, 'food.pantry.unknown_item', `not in the food list: ${unknown.slice(0, 5).join(', ')}`);
         res.json(pantryWire(await store.setPantry(s, req.principal.requester, items)));
+    });
+
+    // ── Recipe ideas from the network's AI (a person's own) ──
+    const recipesDailyLimit = async (req, res, next) => {
+        const today = new Date(s.now()).toISOString().slice(0, 10);
+        const made = await store.countRecipeSuggestionsSince(s, req.principal.requester, today);
+        if (made >= 10) {
+            res.set('Retry-After', String(86400 - (Math.floor(s.now() / 1000) % 86400)));
+            return fail(req, res, 429, 'food.recipes_daily_limit', 'At most 10 recipe suggestions a day.');
+        }
+        return next();
+    };
+
+    r.post('/recipes/suggest', principal.requireCapability('food.recipes.suggest'), recipesDailyLimit, async (req, res) => {
+        if (!config.aiUrl) return fail(req, res, 503, 'food.ai_off', 'Recipe ideas are not available: OpenVibe.AI is not configured for this service.');
+        const b = req.body || {};
+        const ask = typeof b.ask === 'string' && b.ask.trim() ? b.ask.trim().slice(0, 500) : null;
+        let people = null;
+        if (b.people != null && b.people !== '') {
+            people = Number(b.people);
+            if (!Number.isInteger(people) || people < 1 || people > 12) return fail(req, res, 422, 'food.recipes.invalid', 'people: a whole number from 1 to 12');
+        }
+        const owner = req.principal.requester;
+        const pantry = await store.getPantry(s, owner);
+        if (!pantry.length) return fail(req, res, 422, 'food.pantry_empty', 'Your pantry is empty; add what you have before asking for recipe ideas.');
+        let suggestion;
+        try {
+            suggestion = await suggestRecipes(ctx.ai, { pantry, ask, people, subject: owner.replace(/^user:/, '') });
+        } catch (err) {
+            if (err && err.name === 'AiRunError') return fail(req, res, err.status || 502, err.code || 'ai.run_failed', err.message);
+            throw err;
+        }
+        const row = await store.insertRecipeSuggestion(s, {
+            id: s.newId('rcp'), subject_id: owner, created_at: s.iso(),
+            ask, people, ai_run_id: suggestion.runId, recipes: suggestion.recipes,
+        });
+        return res.status(201).json(store.recipeSuggestionToWire(row));
+    });
+
+    r.get('/recipes', principal.requireCapability('food.recipes.suggest'), limits.reads('food.recipes.read'), async (req, res) => {
+        const rows = await store.listRecipeSuggestions(s, req.principal.requester, { limit: 20 });
+        res.json({ recipes: rows.map(store.recipeSuggestionToWire) });
     });
 
     return r;

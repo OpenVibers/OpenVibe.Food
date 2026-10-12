@@ -28,6 +28,7 @@ const NAV = [
     { label: 'Meal plan', href: '/plan' },
     { label: 'Food list', href: '/foods' },
     { label: 'Cupboard', href: '/pantry' },
+    { label: 'Recipes', href: '/recipes' },
     { label: 'What shipped', href: '/updates' },
 ];
 
@@ -48,7 +49,7 @@ function setRelease(id) { if (id) RELEASE = String(id); }
 
 /**
  * o: title, description, body (html), viewer, config, path, index (default false), scripts [rel],
- *    crumbs [{ label, href }], jsonLd [nodes] (serialised by openvibe-shared/seo), styles [openvibe-shared stylesheet names]
+ *    crumbs [{ label, href }], jsonLd [nodes] (serialised by openvibe-shared/seo), styles [openvibe-shared stylesheet names], localStyles [this service's own extra stylesheets under public/, e.g. css/recipes.css]
  */
 function renderPage(o) {
     const viewer = o.viewer || { kind: 'anonymous' };
@@ -93,6 +94,7 @@ function renderPage(o) {
 ${appIcon.headTags({ site: 'food' })}
 <link rel="stylesheet" href="${asset('css/app.css')}">
 ${(o.styles || []).map((name) => `<link rel="stylesheet" href="${esc(ovServe.url(name))}">`).join('\n')}
+${(o.localStyles || []).map((rel) => `<link rel="stylesheet" href="${asset(rel)}">`).join('\n')}
 ${render(scripts)}
 <meta name="ov-boost" content="food@${esc(RELEASE)}">
 <script src="${ovServe.url('boost.js')}" data-main="#main" defer></script>`,

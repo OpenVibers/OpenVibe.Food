@@ -8,6 +8,8 @@
  * These are deliberately simple combinations and the pantry page labels them as such. They are not dietary advice.
  */
 
+const { FOODS, getFood, round } = require('./foods');
+
 const RECIPES = [
     {
         slug: 'beans-and-rice', name: 'Beans and rice', serves: 2, minutes: 25,
@@ -73,4 +75,107 @@ const RECIPES = [
 
 const bySlug = new Map(RECIPES.map((r) => [r.slug, r]));
 
-module.exports = { RECIPES, RECIPE_BY_SLUG: bySlug };
+// ── Recipes from the network's AI (OpenVibe.AI workflow food.suggest_recipes) ──
+// The pantry match above is deterministic and offline. This half builds the request to OpenVibe.AI from a person's
+// saved pantry and Food's own food list, then validates what comes back strictly: an ingredient must be in the pantry
+// or cite one of the sources Food sent, and a recipe with nothing left to make is dropped. Costs are computed here
+// from the food list's typical prices, never from anything the model said.
+const COST_NOTE = 'Cost is an estimate from typical 2025 US (Washington) prices carried over from OpenVibe.Tools, not a live price.';
+const MAX_SOURCES = 60;
+const MAX_PANTRY = 60;
+const MAX_ASK = 500;
+
+/** The rows of Food's own food list the AI may cite, staples first, at most 60. */
+function buildSources() {
+    return [...FOODS]
+        .sort((a, b) => (Number(b.shelf_stable) - Number(a.shelf_stable)) || (a.name < b.name ? -1 : 1))
+        .slice(0, MAX_SOURCES)
+        .map((f) => ({
+            source_type: 'food.food',
+            source_id: f.slug,
+            title: f.name,
+            content: JSON.stringify({ name: f.name, unit: f.serving_size, price: f.price, price_max: f.price_max, price_band_label: f.band_label }),
+        }));
+}
+
+function buildRequest({ pantry = [], ask = null, people = null } = {}) {
+    return {
+        pantry: pantry.slice(0, MAX_PANTRY).map((x) => String(x).slice(0, 120)),
+        ...(ask ? { ask: String(ask).slice(0, MAX_ASK) } : {}),
+        ...(people != null ? { people } : {}),
+        sources: buildSources(),
+    };
+}
+
+/**
+ * Validate the workflow output against the sources Food sent and the person's pantry. Citations are indexes into the
+ * `sources` array; an ingredient that neither is from the pantry nor cites a valid source is dropped, and a recipe
+ * left with no ingredients or no steps is dropped. Each kept recipe gains Food's own `to_buy` and `to_buy_cost`.
+ */
+function validateSuggestions(output, { sources = [], pantry = [] } = {}) {
+    const pantrySet = new Set(pantry);
+    const src = Array.isArray(sources) ? sources : [];
+    const out = output && typeof output === 'object' ? output : {};
+    const recipes = [];
+    for (const r of (Array.isArray(out.recipes) ? out.recipes : []).slice(0, 3)) {
+        if (!r || typeof r !== 'object') continue;
+        const ingredients = [];
+        for (const ing of (Array.isArray(r.ingredients) ? r.ingredients : [])) {
+            if (!ing || typeof ing !== 'object') continue;
+            const fromPantry = ing.from_pantry === true;
+            const citations = Array.isArray(ing.citations)
+                ? ing.citations.filter((c) => Number.isInteger(c) && c >= 0 && c < src.length)
+                : [];
+            if (!fromPantry && !citations.length) continue;
+            ingredients.push({ name: typeof ing.name === 'string' ? ing.name : '', amount: ing.amount == null ? null : ing.amount, from_pantry: fromPantry, citations });
+        }
+        const steps = Array.isArray(r.steps) ? r.steps.map((s) => (typeof s === 'string' ? s.trim() : '')).filter(Boolean) : [];
+        if (!ingredients.length || !steps.length) continue;
+
+        const toBuy = new Map();
+        for (const ing of ingredients) {
+            if (ing.from_pantry) continue;
+            for (const c of ing.citations) {
+                const slug = src[c] && src[c].source_id;
+                if (!slug || pantrySet.has(slug)) continue;
+                const food = getFood(slug);
+                if (!food) continue;
+                toBuy.set(slug, { slug, name: food.name, price: food.price == null ? null : round(food.price, 2) });
+            }
+        }
+        const toBuyList = [...toBuy.values()].sort((a, b) => (a.name < b.name ? -1 : 1));
+
+        recipes.push({
+            title: typeof r.title === 'string' && r.title.trim() ? r.title.trim() : 'Recipe',
+            serves: r.serves,
+            minutes: r.minutes,
+            ingredients,
+            steps,
+            notes: r.notes == null ? null : (typeof r.notes === 'string' ? r.notes : String(r.notes)),
+            to_buy: toBuyList,
+            // A food with no typical price is listed without one and left out of the total, which then says so.
+            to_buy_cost: round(toBuyList.reduce((n, x) => n + (x.price || 0), 0), 2),
+            to_buy_cost_partial: toBuyList.some((x) => x.price == null),
+            cost_note: COST_NOTE,
+        });
+    }
+    return {
+        recipes,
+        citations: Array.isArray(out.citations) ? out.citations.filter((c) => Number.isInteger(c) && c >= 0 && c < src.length) : [],
+        gaps: Array.isArray(out.gaps) ? out.gaps : [],
+    };
+}
+
+/** Call the workflow and return its run id plus Food's validated, costed output. */
+async function suggestRecipes(ai, { pantry = [], ask = null, people = null, subject } = {}) {
+    // The model reads the pantry by name; the slugs stay for matching what is already in the cupboard.
+    const input = buildRequest({ pantry: pantry.map((slug) => (getFood(slug) || {}).name || slug), ask, people });
+    const run = await ai.run('food.suggest_recipes', input, {
+        onBehalfOf: { type: 'user', id: subject },
+        target: { service: 'food', type: 'pantry', id: subject },
+    });
+    const out = validateSuggestions(run && run.output, { sources: input.sources, pantry });
+    return { runId: run && run.runId, recipes: out.recipes, citations: out.citations, gaps: out.gaps };
+}
+
+module.exports = { RECIPES, RECIPE_BY_SLUG: bySlug, COST_NOTE, MAX_SOURCES, buildSources, buildRequest, validateSuggestions, suggestRecipes };
