@@ -146,10 +146,11 @@ function appToken(t, cap) {
             const without = await t.get('/api/v1/recipes/suggest', { bearer: appToken(t, []), method: 'POST', json: { ask: 'x' } });
             assert.strictEqual(without.status, 403);
             assert.match(without.json().code, /capability/);
-            // The capability is proposed but not yet in openvibe-contracts, so even a granted token is refused here.
+            // openvibe-contracts 0.147.0 defines it: a granted token passes the gate and reaches the route (its subject has
+            // no pantry yet, so the answer is the route's own 422, not a capability refusal).
             const withCap = await t.get('/api/v1/recipes/suggest', { bearer: appToken(t, ['food.recipes.suggest']), method: 'POST', json: { ask: 'x' } });
-            assert.strictEqual(withCap.status, 403);
-            assert.match(withCap.json().code, /capability/);
+            assert.strictEqual(withCap.status, 422, withCap.text);
+            assert.strictEqual(withCap.json().code, 'food.pantry_empty');
         });
 
         await check('an empty pantry is a 422 food.pantry_empty', async () => {
