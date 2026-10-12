@@ -107,12 +107,13 @@ ${res_.phone ? html`<p class="small">Phone: <a href="tel:${String(res_.phone).re
             body: html`${raw(hero)}
 ${raw(showcase.features({
                 title: 'Everything food',
-                lede: 'Four things, all working today: no card, no account needed to look around.',
+                lede: 'Five things, all working today: no card, no account needed to look around.',
                 items: [
                     { icon: 'ov:location', title: 'Food near you', text: 'Food banks, soup kitchens, community fridges and free pantry boxes, plus the budget grocery stores, with distance, address and opening hours.', href: '/near' },
                     { icon: 'ov:page', title: 'A meal planner', text: 'One person, a couple or a group, for up to fourteen days. It covers all six food groups, writes the shopping list and estimates what it costs.', href: '/plan' },
                     { icon: 'ov:tools', title: 'A food list you can read', text: 'Every item with its nutrition per serving and per 100 g, the typical price band and the cheapest of the five budget chains.', href: '/foods' },
                     { icon: 'ov:account', title: 'Your cupboard', text: 'Keep a list of what you have. Sign in and it says plainly which simple things you can already make, and what one item would unlock.', href: '/pantry' },
+                    { icon: 'ov:ai', title: 'Recipe ideas', text: 'Tell it what you feel like and it suggests up to three recipes from your cupboard, with what you would still need to buy and its typical cost. Suggested by AI, so check before you cook.', href: '/recipes' },
                 ],
             }))}
 ${raw(showcase.cta({
