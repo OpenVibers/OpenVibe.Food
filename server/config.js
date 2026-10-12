@@ -69,6 +69,11 @@ function load(env = process.env) {
         },
         cookies: { secure: env.COOKIE_SECURE ? env.COOKIE_SECURE === 'true' : isProduction },
 
+        // OpenVibe.AI → Food (recipes from the pantry). Unset means the feature is off: POST /api/v1/recipes/suggest
+        // answers 503 food.ai_off. When set, Food calls the food.suggest_recipes workflow with its own service token
+        // (server/food/recipes.js).
+        aiUrl: trim(env.OV_AI_INTERNAL_URL || ''),
+
         // OpenVibe.Events → this service (server/events-consumer.js). The secret signs a delivery (comma-separated
         // for rotation, 32+ characters each); unset turns POST /internal/events off (503). The url is where the
         // network.account.export_requested and network.account.deleted subscriptions are created at boot, off when

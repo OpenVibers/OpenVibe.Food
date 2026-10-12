@@ -7,6 +7,7 @@
  */
 
 const PLAN_LIST_LIMIT = 50;
+const RECIPE_SUGGESTION_LIST_LIMIT = 20;
 
 const parse = (v) => (v == null ? null : typeof v === 'string' ? JSON.parse(v) : v);
 
@@ -74,8 +75,33 @@ async function setPantry(s, owner, items) {
     return items.slice().sort();
 }
 
+// ── food_recipe_suggestions ─────────────────────────────────
+async function insertRecipeSuggestion(s, r) {
+    await s.db.query(
+        'INSERT INTO food_recipe_suggestions (id, subject_id, created_at, ask, people, ai_run_id, recipes) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)',
+        [r.id, r.subject_id, r.created_at, r.ask || null, r.people == null ? null : r.people, r.ai_run_id || null, JSON.stringify(r.recipes)]);
+    // Food keeps the last 20 suggestions per person; the oldest drop out.
+    await s.db.exec(
+        'DELETE FROM food_recipe_suggestions WHERE subject_id = $1 AND id NOT IN (SELECT id FROM food_recipe_suggestions WHERE subject_id = $1 ORDER BY id DESC LIMIT $2)',
+        [r.subject_id, RECIPE_SUGGESTION_LIST_LIMIT]);
+    return recipeSuggestionRow(s, r.subject_id, r.id);
+}
+const recipeSuggestionRow = (s, subjectId, id) => s.db.maybe('SELECT * FROM food_recipe_suggestions WHERE subject_id = $1 AND id = $2', [subjectId, id]);
+async function listRecipeSuggestions(s, subjectId, { limit = 20 } = {}) {
+    return s.db.many('SELECT * FROM food_recipe_suggestions WHERE subject_id = $1 ORDER BY id DESC LIMIT $2', [subjectId, Math.min(limit, RECIPE_SUGGESTION_LIST_LIMIT)]);
+}
+/** The number of suggestions a person made on or after `since` (an ISO date, for the daily cap). */
+const countRecipeSuggestionsSince = (s, subjectId, since) => s.db.value('SELECT count(*)::int FROM food_recipe_suggestions WHERE subject_id = $1 AND created_at >= $2', [subjectId, since]);
+
+const recipeSuggestionToWire = (row) => ({
+    id: row.id, created_at: row.created_at, ask: row.ask || null,
+    people: row.people == null ? null : Number(row.people), ai_run_id: row.ai_run_id || null,
+    recipes: parse(row.recipes),
+});
+
 module.exports = {
     cacheGet, cachePut, cachePrune, startCachePrune,
     insertPlan, planRow, listPlans, deletePlan, planToWire,
     getPantry, pantryRows, setPantry,
+    insertRecipeSuggestion, recipeSuggestionRow, listRecipeSuggestions, countRecipeSuggestionsSince, recipeSuggestionToWire,
 };

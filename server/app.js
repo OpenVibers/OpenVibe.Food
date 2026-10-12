@@ -35,6 +35,7 @@ const { createServiceReadiness } = require('./observability');
 const { createCallerLimits } = require('./http/caller-limits');
 const accountDataLib = require('./identity/account-data');
 const { createNetworkSender } = require('openvibe-sdk/account-data');
+const { createAiClient } = require('openvibe-publishing/ai');
 const { assetVersion, send } = require('./render/layout');
 const { html } = require('./render/html');
 
@@ -74,6 +75,14 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Food cannot answer account events'); });
     ctx.accountData = accountData;
     ctx.accountSend = accountSend;
+
+    // OpenVibe.AI (recipes from the pantry, server/food/recipes.js). Off when OV_AI_INTERNAL_URL is unset: the
+    // recipes API answers 503 food.ai_off. A test injects a stand-in through opts.ai so it never reaches the network.
+    const aiTokenClient = config.aiUrl && config.oauth.clientSecret ? contracts.serviceAuth.createTokenClient({
+        tokenUrl: `${config.networkInternalUrl}/oauth/token`, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret,
+        audience: 'openvibe.ai', scope: 'ai.run.create ai.run.read', fetchImpl,
+    }) : null;
+    ctx.ai = opts.ai !== undefined ? opts.ai : createAiClient({ baseUrl: config.aiUrl, tokenClient: aiTokenClient, fetch: fetchImpl });
 
     const app = express();
     app.disable('x-powered-by');

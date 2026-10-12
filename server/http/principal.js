@@ -28,6 +28,7 @@ const CAPABILITIES = [
     'food.plan.write',      // save a plan
     'food.pantry.read',     // read a caller's pantry
     'food.pantry.write',    // replace a caller's pantry
+    'food.recipes.suggest', // ask the network's AI for recipes from a caller's pantry (proposed; see README)
 ];
 
 function decodePayload(token) {

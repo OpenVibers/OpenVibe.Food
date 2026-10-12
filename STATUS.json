@@ -7,11 +7,11 @@
   "runtime": "node 22, express 4, PostgreSQL 18 (openvibe-sdk/db, async) + Valkey 9",
   "port": "4970",
   "domain": "openvibe.food",
-  "contracts": "openvibe-contracts v0.143.0",
+  "contracts": "openvibe-contracts v0.147.0",
   "sdk": "openvibe-sdk v0.44.0",
   "shared": "openvibe-shared v4.0.2",
   "packages": [
-    "openvibe-contracts v0.143.0",
+    "openvibe-contracts v0.147.0",
     "openvibe-sdk v0.44.0",
     "openvibe-shared v4.0.2"
   ],
@@ -53,5 +53,5 @@
     "deploy files"
   ],
   "deployment": "openvibe-ovh: unit openvibe-food.service on 127.0.0.1:4970 (git checkout /opt/openvibe.food, env /etc/openvibe/food.env, database ov_food), deployed with `sudo ovhost deploy food`; public at https://openvibe.food since 2026-10-08.",
-  "updated": "2026-10-11"
+  "updated": "2026-10-12"
 }

@@ -23,11 +23,13 @@ const { asyncRouter } = require('./router');
 const { createDiscoveryRoutes, homeJsonLd } = require('./discovery');
 const { sameOrigin } = require('./principal');
 const { html, raw, table, notice, time, badge } = require('../render/html');
+const { markdown } = require('../render/markdown');
 const { send } = require('../render/layout');
 const foods = require('../food/foods');
 const { planMeals } = require('../food/planner');
 const { searchPlaces, safeUrl, ATTRIBUTION } = require('../food/places');
 const { matchPantry } = require('../food/pantry-match');
+const { suggestRecipes } = require('../food/recipes');
 const store = require('../food/store');
 
 const SITE_NAME = 'OpenVibe.Food';
@@ -358,6 +360,7 @@ ${foods.FOODS.filter((f) => f.group === id).map((f) => html`<label class="pantry
             body: html`<h1>Your cupboard</h1>
 <p class="lede">Tick what you have. Nothing leaves your account; the matching is done here, not by a model.</p>
 ${saved ? notice('Cupboard saved.', 'ok') : ''}
+<p><a href="/recipes">Get recipe ideas</a></p>
 <form method="post" action="/pantry" class="pantry-form">
 ${groupsBlock}
 <div class="pantry-actions"><button class="sc-btn sc-primary" type="submit">Save cupboard</button><span class="muted small">${items.length} of ${foods.FOODS.length} items</span></div>
@@ -382,6 +385,98 @@ ${match.rest.length ? html`<h3>Further off</h3><ul>${match.rest.slice(0, 6).map(
         if (picked.length > 200) return res.status(413).type('text/plain').send('That is more items than a cupboard can hold.');
         await store.setPantry(s, ownerOf(req), picked);
         return res.redirect(303, '/pantry?saved=1');
+    });
+
+    // ── Recipe ideas from the network's AI ───────────────────
+    function recipeBlock(r) {
+        const meta = [r.serves != null ? `Serves ${r.serves}` : null, r.minutes != null ? `About ${r.minutes} min` : null].filter(Boolean);
+        return html`<article class="recipe">
+<header class="recipe-head"><h3>${r.title}</h3>${meta.length ? html`<p class="recipe-meta">${meta.join(' · ')}</p>` : ''}</header>
+<div class="recipe-body">
+<section class="recipe-ingredients" aria-label="Ingredients"><h4>Ingredients</h4>
+<ul>${r.ingredients.map((i) => html`<li><span>${i.name}${i.amount ? html` <span class="muted">${i.amount}</span>` : ''}</span>${i.from_pantry ? html` <span class="badge ok">in your cupboard</span>` : ''}</li>`)}</ul></section>
+<section class="recipe-steps" aria-label="Steps"><h4>Steps</h4>
+<ol>${r.steps.map((st) => html`<li>${st}</li>`)}</ol></section>
+</div>
+${r.to_buy && r.to_buy.length ? html`<div class="recipe-buy"><h4>Still to buy</h4>
+<ul>${r.to_buy.map((x) => html`<li><span>${x.name}</span><span>${x.price == null ? 'no typical price' : money(x.price)}</span></li>`)}</ul>
+<p class="recipe-total"><span>Typical total${r.to_buy_cost_partial ? ' (items with a price)' : ''}</span><strong>${money(r.to_buy_cost)}</strong></p>
+<p class="muted small">${r.cost_note}</p></div>` : html`<p class="recipe-buy recipe-buy-none">Everything this recipe needs is already in your cupboard.</p>`}
+${r.notes ? html`<div class="recipe-notes small">${raw(markdown(r.notes))}</div>` : ''}
+</article>`;
+    }
+
+    async function recipesPage(req, res, { saved = false, error = null } = {}) {
+        if (!signedIn(req)) {
+            return page(req, res, {
+                title: 'Recipe ideas', crumbs: [{ label: 'Recipe ideas' }], styles: [showcase.STYLESHEET], localStyles: ['css/recipes.css'],
+                body: html`<h1>Recipe ideas</h1>
+<p class="lede">Tell OpenVibe.Food what you feel like and how many people you are feeding. It suggests up to three recipes from the food list, marks what is already in your cupboard and lists what you would still need to buy, with a typical cost.</p>
+<p><a class="sc-btn sc-primary" href="/auth/login?next=%2Frecipes">Sign in to get recipe ideas</a></p>`,
+            });
+        }
+        const rows = (await store.listRecipeSuggestions(s, ownerOf(req), { limit: 20 })).map(store.recipeSuggestionToWire);
+        const problems = {
+            'food.pantry_empty': 'Add what you have to your cupboard first — there is nothing to suggest recipes from.',
+            'food.ai_off': 'Recipe ideas are not available right now.',
+            'food.recipes.invalid': 'That request did not make sense. Try again.',
+            'food.recipes_daily_limit': 'You have reached today\'s recipe idea limit. Come back tomorrow.',
+        };
+        page(req, res, {
+            title: 'Recipe ideas', crumbs: [{ label: 'Recipe ideas' }], styles: [showcase.STYLESHEET], localStyles: ['css/recipes.css'],
+            body: html`<h1>Recipe ideas</h1>
+<p class="lede">What do you feel like, and for how many people? OpenVibe.AI suggests up to three recipes from the food list, and OpenVibe.Food works out what you would still need to buy from its own typical prices.</p>
+${saved ? notice('Recipe ideas saved below.', 'ok') : ''}
+${error ? notice(problems[error] || 'That did not work. Try again.', 'warn') : ''}
+<form class="ov-form recipe-form" method="post" action="/recipes">
+<div class="recipe-field recipe-field-ask"><label for="ask">What do you feel like? <span class="muted">(optional)</span></label>
+<input id="ask" name="ask" type="text" maxlength="500" placeholder="Something quick and filling"></div>
+<div class="recipe-field"><label for="people">People <span class="muted">(optional)</span></label>
+<input id="people" name="people" type="number" min="1" max="12" step="1" inputmode="numeric"></div>
+<button class="sc-btn sc-primary" type="submit">Suggest recipes</button>
+</form>
+<p class="muted small">Ideas come from what is in <a href="/pantry">your cupboard</a>. Up to 10 requests a day.</p>
+${rows.length ? html`<h2>Recent ideas</h2>
+<p class="notice">Suggested by OpenVibe.AI from your cupboard and the food list. Check a recipe before you cook it: cook meat, poultry and eggs through, and mind allergies.</p>
+${rows.map((row) => html`<section class="recipe-suggestion">
+<p class="recipe-asked muted small">${row.ask ? html`“${row.ask}” · ` : ''}${row.people ? html`${row.people} ${row.people === 1 ? 'person' : 'people'} · ` : ''}${time(row.created_at)}</p>
+${row.recipes.length ? html`<div class="recipe-grid">${row.recipes.map(recipeBlock)}</div>` : html`<p class="muted">No recipe could be made from the food list this time. Try a different request.</p>`}
+</section>`)}` : html`<p class="muted">No ideas yet. Say what you feel like above, or just press Suggest recipes.</p>`}`,
+        });
+    }
+
+    r.get('/recipes', (req, res) => recipesPage(req, res, { saved: !!req.query.saved, error: typeof req.query.error === 'string' ? req.query.error : null }));
+
+    r.post('/recipes', express.urlencoded({ extended: false, limit: '64kb' }), async (req, res) => {
+        res.set('Cache-Control', cache.htmlHeaders({ private: true }));
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Frecipes');
+        if (!sameOrigin(req, config.baseUrl)) return res.status(403).type('text/plain').send('A recipe request must be made from openvibe.food itself.');
+        const b = req.body || {};
+        const ask = str(b.ask, 500);
+        const peopleRaw = str(b.people, 4);
+        let people = null;
+        if (peopleRaw) {
+            people = Number(peopleRaw);
+            if (!Number.isInteger(people) || people < 1 || people > 12) return res.redirect(303, '/recipes?error=food.recipes.invalid');
+        }
+        if (!config.aiUrl) return res.redirect(303, '/recipes?error=food.ai_off');
+        const owner = ownerOf(req);
+        const pantry = await store.getPantry(s, owner);
+        if (!pantry.length) return res.redirect(303, '/recipes?error=food.pantry_empty');
+        const today = new Date(s.now()).toISOString().slice(0, 10);
+        if (await store.countRecipeSuggestionsSince(s, owner, today) >= 10) return res.redirect(303, '/recipes?error=food.recipes_daily_limit');
+        let suggestion;
+        try {
+            suggestion = await suggestRecipes(ctx.ai, { pantry, ask, people, subject: owner.replace(/^user:/, '') });
+        } catch (err) {
+            if (err && err.name === 'AiRunError') return res.redirect(303, `/recipes?error=${encodeURIComponent(err.code || 'ai.run_failed')}`);
+            throw err;
+        }
+        await store.insertRecipeSuggestion(s, {
+            id: s.newId('rcp'), subject_id: owner, created_at: s.iso(),
+            ask, people, ai_run_id: suggestion.runId, recipes: suggestion.recipes,
+        });
+        return res.redirect(303, '/recipes?saved=1');
     });
 
     // ── The update log ───────────────────────────────────────
