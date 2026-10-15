@@ -67,6 +67,11 @@ ${panel ? html`<p class="food-search-note">Free, no account. Places from OpenStr
 </form>`;
     }
 
+    // OpenVibe.Watch's new-watch form, filled in to follow a food bank's own website for changes (new hours, a closure);
+    // the person reviews and creates it on Watch. Only for food help: a grocery chain's site changes all the time.
+    const WATCH_NEW = 'https://openvibe.watch/watches/new';
+    const watchHref = (place, website) => `${WATCH_NEW}?${new URLSearchParams({ template: 'page', url: website, name: `Food: ${place.name}`.slice(0, 80) })}`;
+
     function placeRow(res_) {
         // The source already drops a non-http(s) website from OSM (server/food/places.js); checked again here, so a
         // hostile or stale value can never reach an href. Anything but a safe URL simply shows no website link.
@@ -76,7 +81,7 @@ ${panel ? html`<p class="food-search-note">Free, no account. Places from OpenStr
 <p class="muted small">${km(res_.distance_km)} away${res_.address ? html` · ${res_.address}` : ''}${res_.operator ? html` · run by ${res_.operator}` : ''}</p>
 ${res_.opening_hours ? html`<p class="small">Opening hours: ${res_.opening_hours}</p>` : ''}
 ${res_.phone ? html`<p class="small">Phone: <a href="tel:${String(res_.phone).replace(/[^\d+]/g, '')}">${res_.phone}</a></p>` : ''}
-<p class="small">${website ? html`<a href="${website}" rel="noopener nofollow">Their website</a> · ` : ''}<a href="${res_.osm_url}" rel="noopener nofollow">View on OpenStreetMap</a>${res_.wheelchair === true ? html` · wheelchair accessible` : ''}</p>
+<p class="small">${website ? html`<a href="${website}" rel="noopener nofollow">Their website</a> · ` : ''}${website && res_.kind === 'foodbank' ? html`<a href="${watchHref(res_, website)}">Watch for changes</a> · ` : ''}<a href="${res_.osm_url}" rel="noopener nofollow">View on OpenStreetMap</a>${res_.wheelchair === true ? html` · wheelchair accessible` : ''}</p>
 </li>`;
     }
 
@@ -84,7 +89,9 @@ ${res_.phone ? html`<p class="small">Phone: <a href="tel:${String(res_.phone).re
         if (!out.results.length) {
             return html`<p class="muted">Nothing was found within ${out.radius_km} km. OpenStreetMap does not know every food bank — try a wider area, or ask your local council.</p>`;
         }
-        return html`<ul class="places">${out.results.map(placeRow)}</ul>`;
+        const watchable = out.results.some((r) => r.kind === 'foodbank' && safeUrl(r.website));
+        return html`<ul class="places">${out.results.map(placeRow)}</ul>
+${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch with that place's website filled in: it checks the page and tells you when it changes, such as new opening hours or a closure.</p>` : ''}`;
     }
 
     // ── Home ─────────────────────────────────────────────────

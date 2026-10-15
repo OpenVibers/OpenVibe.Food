@@ -168,6 +168,13 @@ const OVERPASS = '/api/interpreter';
             assert.ok(!/href="data:text\/html/i.test(page.text), 'no data: href from OSM reaches the page');
             assert.match(page.text, /href="https:\/\/example\.org\/pantry"/, 'the real website is linked');
             assert.match(page.text, /Their website/);
+            // Watch for changes: OpenVibe.Watch's page template, filled in with the safe website only.
+            const watch = [...page.text.matchAll(/href="(https:\/\/openvibe\.watch\/watches\/new\?[^"]+)"/g)].map((m) => new URL(m[1].replace(/&amp;/g, '&')));
+            assert.strictEqual(watch.length, 1, 'one Watch link: only the place with a safe website');
+            assert.strictEqual(watch[0].searchParams.get('template'), 'page');
+            assert.strictEqual(watch[0].searchParams.get('url'), 'https://example.org/pantry');
+            assert.strictEqual(watch[0].searchParams.get('name'), 'Food: Real Website');
+            assert.match(page.text, /Watch for changes opens OpenVibe\.Watch/);
         });
 
         await check('public reads need no token, and bad input is refused with a stable code', async () => {
