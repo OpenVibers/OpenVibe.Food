@@ -2,8 +2,8 @@
 
 > What should we eat?
 
-**Status:** the product works — food near you, a meal planner, the food database, the pantry and recipe ideas from the network's AI are live and tested.
-Delivery comparison (the manifests' remaining pillar) is not built yet.
+**Status:** the product works — food near you, a meal planner, the food database, the pantry, recipe ideas from the network's AI and plan together (a saved plan shared with a household, with a shopping list everyone ticks off) are live and tested.
+Delivery price comparison is not built: the delivery apps publish no open prices.
 
 **Domain:** `openvibe.food` · **Port:** 4970 · **Service id:** `food` · **Env prefix:** `FOOD`
 **License:** AGPL-3.0 (same as every OpenVibe service).

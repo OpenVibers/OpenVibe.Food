@@ -17,7 +17,7 @@ const foods = require('../food/foods');
 
 const SITE_NAME = 'OpenVibe.Food';
 const DESCRIPTION = 'OpenVibe.Food — What should we eat? Find food banks and budget grocery stores near you, plan meals, and cook from what is in your cupboard.';
-const DISALLOW = ['/auth/', '/api/', '/pantry', '/plan/saved'];
+const DISALLOW = ['/auth/', '/api/', '/pantry', '/plan/saved', '/plan/p/', '/plan/join/'];
 
 const PAGE_TEXT = {
     '/': ['OpenVibe.Food home', 'OpenVibe.Food: What should we eat? Find food near you, plan budget meals and cook from your cupboard.'],
