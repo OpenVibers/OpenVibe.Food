@@ -103,6 +103,7 @@ ${res_.phone ? html`<p class="small">Phone: <a href="tel:${String(res_.phone).re
         });
         page(req, res, {
             index: true, cache: signedIn(req) ? null : PUBLIC_CACHE,
+            description: 'Find food banks and budget grocers near you, plan meals for a household with the shopping list and its cost, and cook from your cupboard.',
             jsonLd: homeJsonLd(config),
             styles: [showcase.STYLESHEET],
             body: html`${raw(hero)}
@@ -629,6 +630,7 @@ ${row.recipes.length ? html`<div class="recipe-grid">${row.recipes.map(recipeBlo
     r.get('/updates', (req, res) => page(req, res, {
         index: true, cache: PUBLIC_CACHE,
         title: `What shipped on ${SITE_NAME}`,
+        description: 'Every change deployed to OpenVibe.Food, newest first, from the OpenVibe network\'s shared update log.',
         body: raw(frame.updatesBody({ service: 'food', siteName: SITE_NAME }) + `<script src="${ovServe.url('shipped.js')}" defer></script>`),
     }));
 
