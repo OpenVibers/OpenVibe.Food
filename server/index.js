@@ -31,11 +31,11 @@ async function start() {
     });
     server.keepAliveTimeout = 65_000;
     ctx.keys.client.start();
-    // telemetry_samples rows older than 30 days go: a minute after start, then daily (openvibe-sdk/telemetry).
-    ctx.retention = startTelemetryRetention({ db: ctx.s.db, log: ctx.log || console });
+    // telemetry_samples rows older than 14 days go: a minute after start, then daily (openvibe-sdk/telemetry).
+    ctx.retention = startTelemetryRetention({ db: ctx.s.db, log: ctx.log || console, olderThanDays: 14 });
     // The request collector aggregates in memory and has no timer of its own (openvibe-sdk 0.46 createHttpTelemetry):
-    // this tick writes each 15-second interval's samples; the stop clears it and flushes once more.
-    ctx.telemetryTick = setInterval(() => { ctx.telemetry.flush().catch(() => {}); }, 15_000);
+    // this tick writes each minute's samples; the stop clears it and flushes once more.
+    ctx.telemetryTick = setInterval(() => { ctx.telemetry.flush().catch(() => {}); }, 60_000);
     ctx.telemetryTick.unref();
 
     // Subscribe to the two ADR-033 topics at OpenVibe.Events (idempotent; off without FOOD_EVENTS_URL and
