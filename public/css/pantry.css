@@ -7,3 +7,9 @@
 #bc-video[hidden] { display: none; }
 .pantry-confirm { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
 .pantry-confirm select { font: inherit; padding: 8px 10px; border-radius: 10px; max-width: 100%; }
+.pantry-photo fieldset { border: 1px solid var(--border, #1f2d47); border-radius: 10px; margin: 0 0 16px; max-width: 560px; }
+.pantry-photo legend { font-weight: 700; padding: 0 4px; }
+.pantry-photo-kind { display: flex; gap: 14px; flex-wrap: wrap; margin: 4px 0 8px; }
+.pantry-photo input[type=file] { display: block; margin: 6px 0 10px; max-width: 100%; }
+.pantry-seen { list-style: none; padding: 0; display: grid; gap: 8px; }
+.pantry-seen li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--border, #1f2d47); border-radius: 10px; }
