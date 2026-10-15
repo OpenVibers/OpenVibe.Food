@@ -88,6 +88,7 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'Food near you', url: abs('/near'), note: 'food banks and budget grocery stores, from OpenStreetMap' },
                     { title: 'Meal plan', url: abs('/plan'), note: 'a shopping list and an estimated cost' },
                     { title: 'The food list', url: abs('/foods'), note: 'nutrition and typical prices' },
+                    { title: 'Recipe library', url: abs('/recipes/library'), note: 'budget recipes written by OpenVibe.AI from the food list, each with what to buy and its typical cost; a recipe a person checked is marked so' },
                     { title: 'What shipped on OpenVibe.Food', url: abs('/updates') },
                 ] },
                 { title: 'Machine-readable', links: [
@@ -120,9 +121,11 @@ function createDiscoveryRoutes(ctx) {
         }));
     });
 
-    r.get('/sitemap.xml', (_req, res) => {
+    r.get('/sitemap.xml', async (_req, res) => {
         const lastmod = siteUpdated();
         const urls = publicPages().map((e) => ({ loc: abs(e.path), ...(lastmod ? { lastmod } : {}), changefreq: e.changefreq, priority: e.priority }));
+        // Library recipes a person checked (the others are noindex until then).
+        if (ctx.library) for (const x of await ctx.library.reviewed()) urls.push({ loc: abs(`/recipes/library/${x.slug}`), lastmod: String(x.reviewed_at || x.created_at).slice(0, 10), changefreq: 'monthly', priority: 0.6 });
         res.type('application/xml').set('Cache-Control', TEXT).send(seo.sitemapXml(urls));
     });
 
