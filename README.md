@@ -3,7 +3,7 @@
 > What should we eat?
 
 **Status:** the product works — food near you, a meal planner, the food database, the pantry, recipe ideas from the network's AI and plan together (a saved plan shared with a household, with a shopping list everyone ticks off) are live and tested.
-Delivery price comparison is not built: the delivery apps publish no open prices.
+Delivery is compared the permitted way: one search opens every delivery app's own search (`/delivery`), with the meal kits side by side; prices and fees stay on each app, where the person is signed in.
 
 **Domain:** `openvibe.food` · **Port:** 4970 · **Service id:** `food` · **Env prefix:** `FOOD`
 **License:** AGPL-3.0 (same as every OpenVibe service).
@@ -24,6 +24,7 @@ pantry with a deterministic "what can I make". Everything is server-rendered and
 | Food database | [/foods, /foods/:slug](server/http/pages.js), [server/food/foods.js](server/food/foods.js) | 42 items with nutrition per serving and per 100 g, the typical price band and the chain-by-chain comparison; server-rendered and in the sitemap |
 | Pantry | [/pantry](server/http/pages.js), [server/food/pantry-match.js](server/food/pantry-match.js) | Signed in, keep what is in your cupboard and see which basic recipes you can make now, and what one more item would unlock. Deterministic; no model call |
 | Recipe ideas | [/recipes](server/http/pages.js), [server/food/recipes.js](server/food/recipes.js) | Signed in, ask OpenVibe.AI's `food.suggest_recipes` workflow for ideas from your pantry; Food validates the answer against its own food list and prices the to-buy items from its typical prices. Clearly labelled AI-suggested |
+| Delivery, compared | [/delivery](server/http/pages.js), [server/food/delivery.js](server/food/delivery.js) | One query opens DoorDash, Uber Eats, Grubhub, Seamless, Caviar and Instacart's own searches in new tabs (URL forms checked in a real browser on 2026-10-15; Postmates is Uber Eats now, Gopuff, Slice and ezCater have no stable search link). Meal kits and prepared meals (EveryPlate, Dinnerly, HelloFresh, Home Chef, Marley Spoon, Blue Apron, Hungryroot, Green Chef, Purple Carrot, Factor) by tier, each with its plans page and an OpenVibe.Watch link for price changes. Food fetches none of them; published per-serving prices conflict between sources, so none are shown |
 | The OpenStreetMap client | [server/food/upstream.js](server/food/upstream.js) | The only outbound calls this service makes: paced, cached, identified, bounded |
 | Store | [server/food/store.js](server/food/store.js), [migrations/](migrations/) | `food_geo_cache`, `food_plans`, `food_pantry`, `food_recipe_suggestions` |
 | Platform | the skeleton | Sign-in with OpenVibe.Network, the OpenVibe Frame, limits, readiness, discovery, deploy files |

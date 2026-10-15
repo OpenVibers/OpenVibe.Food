@@ -1,0 +1,24 @@
+/* OpenVibe.Food — /delivery only (every delivery app's own search, meal kits side by side), so app.css stays in budget. */
+.dv-form { margin: 14px 0 18px; display: grid; gap: 6px; max-width: 720px; }
+.dv-form label { font-weight: 700; font-size: .9rem; }
+.dv-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.dv-row input { flex: 1 1 260px; min-width: 0; font: inherit; height: 46px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-light, #2c3d5c); background: var(--bg-secondary, #0f1729); color: var(--text-primary, #e6edf7); }
+.dv-apps { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.dv-app { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border, #1f2d47); background: var(--bg-card, #131c2e); transition: border-color .15s ease, transform .15s ease; }
+.dv-app:hover { border-color: var(--accent, #3b82f6); transform: translateY(-1px); }
+.dv-open { display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--text-primary, #e6edf7); }
+.dv-name { font-weight: 700; font-size: 1.05rem; }
+.dv-host { font-size: .82rem; color: var(--accent-text, var(--accent, #3b82f6)); }
+.dv-best { margin: 0; }
+.dv-kits { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 8px; }
+.dv-kit { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border, #1f2d47); background: var(--bg-card, #131c2e); }
+.dv-kit-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dv-kit-name { font-weight: 700; color: var(--text-primary, #e6edf7); text-decoration: none; }
+.dv-kit-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.dv-tier { justify-self: start; font-size: .72rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border-light, #2c3d5c); }
+.dv-budget { color: color-mix(in srgb, #22c55e 75%, var(--text-primary, #e6edf7)); border-color: rgba(74, 222, 128, .45); }
+.dv-mid { color: color-mix(in srgb, #3b82f6 75%, var(--text-primary, #e6edf7)); border-color: rgba(96, 165, 250, .45); }
+.dv-premium { color: color-mix(in srgb, #d946ef 75%, var(--text-primary, #e6edf7)); border-color: rgba(240, 171, 252, .45); }
+.dv-watch { white-space: nowrap; }
+@media (max-width: 640px) { .dv-kit { grid-template-columns: minmax(0, 1fr); gap: 6px; } .dv-watch { justify-self: start; } }
+@media (prefers-reduced-motion: reduce) { .dv-app, .dv-app:hover { transition: none; transform: none; } }
