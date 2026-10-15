@@ -14,6 +14,7 @@
  * Crawl artifacts (robots.txt, sitemap.xml, llms.txt, llms-full.txt, JSON-LD) are http/discovery.js.
  * Every page that shows OpenStreetMap data carries the attribution ODbL requires, linked back.
  */
+const crypto = require('crypto');
 const express = require('express');
 const ovServe = require('openvibe-shared/serve');
 const frame = require('openvibe-shared/frame');
@@ -107,11 +108,12 @@ ${res_.phone ? html`<p class="small">Phone: <a href="tel:${String(res_.phone).re
             body: html`${raw(hero)}
 ${raw(showcase.features({
                 title: 'Everything food',
-                lede: 'Five things, all working today: no card, no account needed to look around.',
+                lede: 'Six things, all working today: no card, no account needed to look around.',
                 items: [
                     { icon: 'ov:location', title: 'Food near you', text: 'Food banks, soup kitchens, community fridges and free pantry boxes, plus the budget grocery stores, with distance, address and opening hours.', href: '/near' },
                     { icon: 'ov:page', title: 'A meal planner', text: 'One person, a couple or a group, for up to fourteen days. It covers all six food groups, writes the shopping list and estimates what it costs.', href: '/plan' },
                     { icon: 'ov:tools', title: 'A food list you can read', text: 'Every item with its nutrition per serving and per 100 g, the typical price band and the cheapest of the five budget chains.', href: '/foods' },
+                    { icon: 'ov:check', title: 'Plan together', text: 'Share a saved plan with your household: everyone sees it, and ticks the shopping list off as they buy.', href: '/plan/saved' },
                     { icon: 'ov:account', title: 'Your cupboard', text: 'Keep a list of what you have. Sign in and it says plainly which simple things you can already make, and what one item would unlock.', href: '/pantry' },
                     { icon: 'ov:ai', title: 'Recipe ideas', text: 'Tell it what you feel like and it suggests up to three recipes from your cupboard, with what you would still need to buy and its typical cost. Suggested by AI, so check before you cook.', href: '/recipes' },
                 ],
@@ -193,7 +195,7 @@ ${osmNote(out.fetched_at)}
 </form>`;
     }
 
-    function planBody(plan) {
+    function planBody(plan, { shopping = true } = {}) {
         return html`<section class="plan-summary">
 <h2>${plan.spec.people} ${plan.spec.people === 1 ? 'person' : 'people'}, ${plan.spec.days} ${plan.spec.days === 1 ? 'day' : 'days'}</h2>
 <ul class="stats">
@@ -205,9 +207,9 @@ ${osmNote(out.fetched_at)}
 </ul>
 ${plan.spec.budget != null ? html`<p class="muted small">Budget ${money(plan.spec.budget)}${plan.remaining_budget != null ? html` · ${money(plan.remaining_budget)} left` : ''}.</p>` : ''}
 </section>
-<h2>The shopping list</h2>
+${shopping ? html`<h2>The shopping list</h2>
 ${table(['Item', 'Packs', 'Where', 'Cost'], plan.shopping_list.map((i) => [html`<a href="/foods/${i.slug}">${i.name}</a>`, String(i.packs), i.store_name || '—', money(i.cost)]), { empty: 'Nothing in the plan.' })}
-<p class="muted small">Cheapest total ${money(plan.totals.cost)} at ${plan.by_store.length} ${plan.by_store.length === 1 ? 'store' : 'stores'}: ${plan.by_store.map((x) => `${x.store_name} ${money(x.cost)}`).join(', ')}. ${plan.totals.packs} packs.</p>
+<p class="muted small">Cheapest total ${money(plan.totals.cost)} at ${plan.by_store.length} ${plan.by_store.length === 1 ? 'store' : 'stores'}: ${plan.by_store.map((x) => `${x.store_name} ${money(x.cost)}`).join(', ')}. ${plan.totals.packs} packs.</p>` : ''}
 <h2>What to eat</h2>
 ${plan.menu.map((d) => html`<section class="plan-day"><h3>Day ${d.day}</h3>
 <ul>${[['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['dinner', 'Dinner'], ['snack', 'Snack']].map(([slot, label]) => html`<li><b>${label}:</b> ${d[slot].join(', ') || '—'}</li>`)}</ul></section>`)}
@@ -228,7 +230,7 @@ ${plan.notes.map((n) => html`<p class="muted small">${n}</p>`)}`;
             body: html`<h1>Plan meals</h1>
 <p class="lede">It buys one item from each of the six food groups first, cheapest per serving, then fills up with the best calories per dollar. Deterministic: the same numbers always give the same plan.</p>
 ${planForm(spec)}
-${savedId ? notice('Saved. It is in your plans below.', 'ok') : ''}
+${savedId && /^pln_[0-9A-Z]{26}$/.test(savedId) ? notice(html`Saved. <a href="/plan/p/${savedId}">Open it</a> to tick the shopping list off or share it with your household.`, 'ok') : ''}
 ${problem ? notice(problem, 'warn') : ''}
 ${plan ? planBody(plan) : ''}
 ${plan && signedIn(req) ? html`<h2>Save this plan</h2>
@@ -261,16 +263,159 @@ ${plan && !signedIn(req) ? html`<p class="muted small"><a href="/auth/login?next
     // Saved plans sit under the same page: nothing personal is ever in a public cache.
     r.get('/plan/saved', async (req, res) => {
         if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fplan%2Fsaved');
-        const rows = await store.listPlans(s, ownerOf(req), { limit: 50 });
+        const [rows, shared] = await Promise.all([store.listPlans(s, ownerOf(req), { limit: 50 }), store.listSharedPlans(s, ownerOf(req))]);
+        const cells = (row, when) => {
+            const plan = typeof row.plan === 'string' ? JSON.parse(row.plan) : row.plan;
+            return [html`<a href="/plan/p/${row.id}">${planTitle(row)}</a>`, `${row.people} people, ${row.days} days`, money(plan.totals.cost), time(when)];
+        };
         page(req, res, {
             title: 'Your plans', crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Saved' }],
             body: html`<h1>Your saved plans</h1>
-${table(['Name', 'For', 'Cost', 'Saved'], rows.map((row) => {
-                const plan = typeof row.plan === 'string' ? JSON.parse(row.plan) : row.plan;
-                return [row.title || `Plan ${String(row.id).slice(-6)}`, `${row.people} people, ${row.days} days`, money(plan.totals.cost), time(row.created_at)];
-            }), { empty: 'No saved plans yet. Make one on the plan page and save it.' })}
+${table(['Name', 'For', 'Cost', 'Saved'], rows.map((row) => cells(row, row.created_at)), { empty: 'No saved plans yet. Make one on the plan page and save it.' })}
+${shared.length ? html`<h2>Shared with you</h2>
+${table(['Name', 'For', 'Cost', 'Joined'], shared.map((row) => cells(row, row.joined_at)))}` : ''}
 <p><a href="/plan">Plan another</a></p>`,
         });
+    });
+
+    // ── Plan together: a saved plan's page, its household and the shared shopping list ──
+    // The owner makes a share link; anyone signed in who opens it and says yes joins the household, sees the plan and
+    // ticks the shopping list off for everyone. Only the SHA-256 of the link's secret is kept, so a link is shown once;
+    // a new one replaces it and turning it off stops new joins (members stay until removed). Every change is a POST
+    // from openvibe.food itself.
+    const PLAN_ID = /^pln_[0-9A-Z]{26}$/;
+    const SECRET = /^[A-Za-z0-9_-]{43}$/;
+    const hashOf = (secret) => crypto.createHash('sha256').update(secret).digest('hex');
+    const nameOf = (req) => String(req.viewer.displayName || req.viewer.username || 'someone').slice(0, 80);
+    const planTitle = (row) => row.title || `Plan ${String(row.id).slice(-6)}`;
+    const PLAN_STYLES = { styles: [showcase.STYLESHEET], localStyles: ['css/plan.css'] };
+    const form = express.urlencoded({ extended: false, limit: '16kb' });
+    const toLogin = (req, res) => res.redirect(303, `/auth/login?next=${encodeURIComponent(req.originalUrl.slice(0, 400))}`);
+    const notOurs = (req, res) => res.status(403).type('text/plain').send('A plan is changed from openvibe.food itself.');
+
+    async function loadPlan(req, res) {
+        const id = str(req.params.id, 40);
+        const got = id && PLAN_ID.test(id) ? await store.planForViewer(s, ownerOf(req), id) : null;
+        if (got) return got;
+        page(req, res, { title: 'Plan not found', crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Not found' }],
+            body: html`<h1>Plan not found</h1><p>It is not yours or shared with you, or it was deleted.</p><p><a href="/plan/saved">Your plans</a></p>` }, 404);
+        return null;
+    }
+
+    async function planPage(req, res, got, { link = null, problem = null, status = 200 } = {}) {
+        const { row, role } = got;
+        const plan = typeof row.plan === 'string' ? JSON.parse(row.plan) : row.plan;
+        const [members, ticks] = await Promise.all([store.listMembers(s, row.id), store.listTicks(s, row.id)]);
+        const ticked = new Map(ticks.map((t) => [t.item, t]));
+        const got_ = plan.shopping_list.filter((i) => ticked.has(i.slug)).length;
+        const me = ownerOf(req);
+        const btn = (action, label, { cls = 'sc-btn', fields = {} } = {}) => html`<form method="post" action="/plan/p/${row.id}/${action}">${Object.entries(fields).map(([k, v]) => html`<input type="hidden" name="${k}" value="${v}">`)}<button class="${cls}" type="submit">${label}</button></form>`;
+        res.set('Cache-Control', cache.htmlHeaders({ private: true }));
+        page(req, res, {
+            title: planTitle(row), crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Your plans', href: '/plan/saved' }, { label: planTitle(row) }], ...PLAN_STYLES,
+            body: html`<h1>${planTitle(row)}</h1>
+<p class="lede">${role === 'owner' ? 'Your plan' : 'Shared with you'} · ${members.length + 1} ${members.length ? 'people in this household' : 'person so far'}.</p>
+${problem ? notice(problem, 'warn') : ''}
+<h2>The shopping list</h2>
+<p class="muted small">${got_} of ${plan.shopping_list.length} got. A tick shows for everyone in the household.</p>
+<ul class="shop-list">${plan.shopping_list.map((i) => {
+                const t = ticked.get(i.slug);
+                return html`<li class="${t ? 'got' : ''}"><form method="post" action="/plan/p/${row.id}/tick"><input type="hidden" name="item" value="${i.slug}"><input type="hidden" name="done" value="${t ? '0' : '1'}"><button class="tick" type="submit" aria-pressed="${t ? 'true' : 'false'}" aria-label="${t ? 'Not got yet' : 'Got it'}: ${i.name}">${t ? '✓' : ''}</button></form>
+<span class="shop-name"><a href="/foods/${i.slug}">${i.name}</a> × ${String(i.packs)}</span><span class="shop-meta muted small">${i.store_name || ''} ${money(i.cost)}${t ? html` · got by ${t.ticked_by === me ? 'you' : (t.name || 'someone')}` : ''}</span></li>`;
+            })}</ul>
+${planBody(plan, { shopping: false })}
+<h2 id="household">The household</h2>
+<ul class="household">
+<li>${role === 'owner' ? 'You' : 'The plan’s owner'} <span class="badge">owner</span></li>
+${members.map((m) => html`<li>${m.member === me ? 'You' : (m.name || 'Someone')} <span class="muted small">joined ${time(m.joined_at)}</span>${role === 'owner' ? btn('remove', 'Remove', { fields: { member: m.member } }) : ''}</li>`)}
+</ul>
+${role === 'owner' ? html`${link ? html`<div class="notice ok" role="status"><p><b>Your share link.</b> Anyone signed in with OpenVibe who opens it can join this household. It is shown once: copy it now. A new link replaces it.</p>
+<p class="share-link"><input type="text" readonly value="${link}" aria-label="Share link"></p></div>` : ''}
+<p class="muted small">${row.share_hash ? 'A share link is on.' : 'No share link is on.'} Members see this plan and tick the shopping list; only you change the household.</p>
+<div class="plan-actions">${btn('share', row.share_hash ? 'Make a new share link' : 'Make a share link', { cls: 'sc-btn sc-primary' })}${row.share_hash ? btn('unshare', 'Turn the link off') : ''}${btn('delete', 'Delete this plan', { cls: 'sc-btn danger' })}</div>`
+                : html`<div class="plan-actions">${btn('leave', 'Leave this household', { cls: 'sc-btn danger' })}</div>`}`,
+        }, status);
+    }
+
+    r.get('/plan/p/:id', async (req, res) => {
+        if (!signedIn(req)) return toLogin(req, res);
+        const got = await loadPlan(req, res);
+        if (got) await planPage(req, res, got);
+    });
+
+    r.post('/plan/p/:id/:action', form, async (req, res) => {
+        if (!signedIn(req)) return toLogin(req, res);
+        if (!sameOrigin(req, config.baseUrl)) return notOurs(req, res);
+        const got = await loadPlan(req, res);
+        if (!got) return undefined;
+        const { row, role } = got;
+        const body = req.body || {};
+        const back = () => res.redirect(303, `/plan/p/${row.id}`);
+        switch (req.params.action) {
+        case 'tick': {
+            const plan = typeof row.plan === 'string' ? JSON.parse(row.plan) : row.plan;
+            const item = str(body.item, 80);
+            if (!item || !plan.shopping_list.some((i) => i.slug === item)) return res.status(400).type('text/plain').send('That is not on this shopping list.');
+            if (body.done === '0') await store.untick(s, row.id, item);
+            else await store.tick(s, row.id, item, ownerOf(req), nameOf(req), s.iso());
+            return back();
+        }
+        case 'leave':
+            if (role === 'member') await store.removeMember(s, row.id, ownerOf(req));
+            return res.redirect(303, '/plan/saved');
+        case 'share': case 'unshare': case 'remove': case 'delete':
+            if (role !== 'owner') return res.status(403).type('text/plain').send('Only the plan’s owner changes the household.');
+            break;
+        default:
+            return res.status(404).type('text/plain').send('Not found.');
+        }
+        if (req.params.action === 'share') {
+            const secret = crypto.randomBytes(32).toString('base64url');
+            await store.setShareHash(s, ownerOf(req), row.id, hashOf(secret));
+            return planPage(req, res, { row: { ...row, share_hash: 'on' }, role }, { link: `${config.baseUrl}/plan/join/${secret}` });
+        }
+        if (req.params.action === 'unshare') await store.setShareHash(s, ownerOf(req), row.id, null);
+        if (req.params.action === 'remove') { const m = str(body.member, 80); if (m) await store.removeMember(s, row.id, m); }
+        if (req.params.action === 'delete') { await store.deletePlan(s, ownerOf(req), row.id); return res.redirect(303, '/plan/saved'); }
+        return back();
+    });
+
+    async function joinTarget(req, res) {
+        const secret = String(req.params.secret || '');
+        const row = SECRET.test(secret) ? await store.planByShareHash(s, hashOf(secret)) : null;
+        if (row) return row;
+        page(req, res, { title: 'Link not working', crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Join' }],
+            body: html`<h1>This link does not work any more</h1><p>Its owner turned it off or made a new one. Ask them for the new link.</p><p><a href="/plan">Make your own plan</a></p>` }, 404);
+        return null;
+    }
+
+    r.get('/plan/join/:secret', async (req, res) => {
+        if (!signedIn(req)) return toLogin(req, res);
+        const row = await joinTarget(req, res);
+        if (!row) return undefined;
+        if (await store.planForViewer(s, ownerOf(req), row.id)) return res.redirect(303, `/plan/p/${row.id}`);
+        res.set('Cache-Control', cache.htmlHeaders({ private: true }));
+        return page(req, res, {
+            title: 'Join a household', crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Join' }], ...PLAN_STYLES,
+            body: html`<h1>Join “${planTitle(row)}”?</h1>
+<p class="lede">You will see this meal plan (${row.people} people, ${row.days} days) and tick its shopping list off with everyone in the household. The household sees your name, ${nameOf(req)}. You can leave at any time.</p>
+<form method="post" action="/plan/join/${req.params.secret}"><button class="sc-btn sc-primary" type="submit">Join the household</button></form>`,
+        });
+    });
+
+    r.post('/plan/join/:secret', form, async (req, res) => {
+        if (!signedIn(req)) return toLogin(req, res);
+        if (!sameOrigin(req, config.baseUrl)) return notOurs(req, res);
+        const row = await joinTarget(req, res);
+        if (!row) return undefined;
+        if (row.owner !== ownerOf(req)) {
+            const out = await store.addMember(s, row.id, ownerOf(req), nameOf(req), s.iso());
+            if (out === 'food.plan.full' || out === 'food.plan.too_many') {
+                return page(req, res, { title: 'Could not join', crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Join' }],
+                    body: html`<h1>Could not join</h1><p>${out === 'food.plan.full' ? `This household is full (${store.MEMBERS_MAX} people besides its owner).` : `You are already in ${store.SHARED_PLANS_MAX} households; leave one first.`}</p><p><a href="/plan/saved">Your plans</a></p>` }, 409);
+            }
+        }
+        return res.redirect(303, `/plan/p/${row.id}`);
     });
 
     // ── The food list ────────────────────────────────────────

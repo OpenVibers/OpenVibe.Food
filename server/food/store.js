@@ -57,6 +57,46 @@ async function listPlans(s, owner, { limit = 20 } = {}) {
 }
 const deletePlan = (s, owner, id) => s.db.exec('DELETE FROM food_plans WHERE owner = $1 AND id = $2', [owner, id]);
 
+// ── Plan together: households (migrations/0005_plan_households.sql) ──
+const MEMBERS_MAX = 12;          // people in one household besides its owner
+const SHARED_PLANS_MAX = 50;     // households one person may belong to
+
+/** The plan and the viewer's place in it ('owner' or 'member'), or null when it is neither theirs nor shared with them. */
+async function planForViewer(s, viewer, id) {
+    const row = await s.db.maybe('SELECT * FROM food_plans WHERE id = $1', [id]);
+    if (!row) return null;
+    if (row.owner === viewer) return { row, role: 'owner' };
+    const m = await s.db.maybe('SELECT 1 AS ok FROM food_plan_members WHERE plan_id = $1 AND member = $2', [id, viewer]);
+    return m ? { row, role: 'member' } : null;
+}
+const setShareHash = (s, owner, id, hash) => s.db.exec('UPDATE food_plans SET share_hash = $3 WHERE owner = $1 AND id = $2', [owner, id, hash]);
+const planByShareHash = (s, hash) => s.db.maybe('SELECT * FROM food_plans WHERE share_hash = $1', [hash]);
+const listMembers = (s, planId) => s.db.many('SELECT member, name, joined_at FROM food_plan_members WHERE plan_id = $1 ORDER BY joined_at', [planId]);
+const listSharedPlans = (s, member) => s.db.many(
+    'SELECT p.*, m.joined_at FROM food_plan_members m JOIN food_plans p ON p.id = m.plan_id WHERE m.member = $1 ORDER BY m.joined_at DESC LIMIT $2',
+    [member, SHARED_PLANS_MAX]);
+
+/** Join a household: 'joined', 'already', or a refusal code (food.plan.full, food.plan.too_many). */
+async function addMember(s, planId, member, name, at) {
+    return s.tx(async () => {
+        if (await s.db.maybe('SELECT 1 AS ok FROM food_plan_members WHERE plan_id = $1 AND member = $2', [planId, member])) return 'already';
+        const n = await s.db.maybe('SELECT COUNT(*)::int AS n FROM food_plan_members WHERE plan_id = $1', [planId]);
+        if (Number(n.n) >= MEMBERS_MAX) return 'food.plan.full';
+        const mine = await s.db.maybe('SELECT COUNT(*)::int AS n FROM food_plan_members WHERE member = $1', [member]);
+        if (Number(mine.n) >= SHARED_PLANS_MAX) return 'food.plan.too_many';
+        await s.db.exec('INSERT INTO food_plan_members (plan_id, member, name, joined_at) VALUES ($1, $2, $3, $4)', [planId, member, name || null, at]);
+        return 'joined';
+    });
+}
+const removeMember = (s, planId, member) => s.db.exec('DELETE FROM food_plan_members WHERE plan_id = $1 AND member = $2', [planId, member]);
+
+const listTicks = (s, planId) => s.db.many('SELECT item, ticked_by, name, ticked_at FROM food_plan_ticks WHERE plan_id = $1', [planId]);
+const tick = (s, planId, item, by, name, at) => s.db.exec(
+    `INSERT INTO food_plan_ticks (plan_id, item, ticked_by, name, ticked_at) VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (plan_id, item) DO UPDATE SET ticked_by = EXCLUDED.ticked_by, name = EXCLUDED.name, ticked_at = EXCLUDED.ticked_at`,
+    [planId, item, by, name || null, at]);
+const untick = (s, planId, item) => s.db.exec('DELETE FROM food_plan_ticks WHERE plan_id = $1 AND item = $2', [planId, item]);
+
 const planToWire = (row) => ({
     id: row.id, title: row.title || null, people: Number(row.people), days: Number(row.days),
     budget: row.budget == null ? null : Number(row.budget), created_at: row.created_at, plan: parse(row.plan),
@@ -102,6 +142,8 @@ const recipeSuggestionToWire = (row) => ({
 module.exports = {
     cacheGet, cachePut, cachePrune, startCachePrune,
     insertPlan, planRow, listPlans, deletePlan, planToWire,
+    planForViewer, setShareHash, planByShareHash, listMembers, listSharedPlans, addMember, removeMember, listTicks, tick, untick,
+    MEMBERS_MAX, SHARED_PLANS_MAX,
     getPantry, pantryRows, setPantry,
     insertRecipeSuggestion, recipeSuggestionRow, listRecipeSuggestions, countRecipeSuggestionsSince, recipeSuggestionToWire,
 };

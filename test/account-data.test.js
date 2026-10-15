@@ -52,6 +52,15 @@ async function makeRows(t, subject, title) {
     await foodStore.insertRecipeSuggestion(s, { id: s.newId('rcp'), subject_id: `user:${subject}`, created_at: s.iso(), ask: `ask-${title}`, people: 2, ai_run_id: 'run_1', recipes: [{ title }] });
 }
 
+/** Plan together: A joins B's household and ticks an item off B's shopping list. */
+async function joinB(t) {
+    const s = t.ctx.s;
+    const bPlan = (await s.db.maybe('SELECT id FROM food_plans WHERE owner = $1', [`user:${B}`])).id;
+    await foodStore.addMember(s, bPlan, `user:${A}`, 'Person A', s.iso());
+    await foodStore.tick(s, bPlan, 'oats', `user:${A}`, 'Person A', s.iso());
+    return bPlan;
+}
+
 (async () => {
     await check('an export part carries only the person\'s plans and pantry, and no secret', async () => {
         const stub = await startNetworkStub();
@@ -60,6 +69,7 @@ async function makeRows(t, subject, title) {
         try {
             await makeRows(t, A, 'person-a');
             await makeRows(t, B, 'person-b');
+            const bPlan = await joinB(t);
 
             const res = await t.get('/internal/events', { method: 'POST', body: bodyOf(exportEvent), headers: { 'Content-Type': 'application/json', ...signDeliveryHeaders(bodyOf(exportEvent), SECRET) } });
             assert.strictEqual(res.status, 200);
@@ -69,7 +79,9 @@ async function makeRows(t, subject, title) {
             assert.ok(part, 'the part was pushed to Network');
             assert.strictEqual(part.auth, 'Bearer tok_food', 'with this service\'s own token');
             assert.strictEqual(part.body.subject, A);
-            assert.deepStrictEqual(part.body.files.map((f) => f.name).sort(), ['pantry.json', 'plans.json', 'recipe-suggestions.json']);
+            assert.deepStrictEqual(part.body.files.map((f) => f.name).sort(), ['households.json', 'pantry.json', 'plans.json', 'recipe-suggestions.json', 'shopping-ticks.json']);
+            assert.deepStrictEqual(part.body.files.find((f) => f.name === 'households.json').content.map((m) => m.plan_id), [bPlan], 'the household A joined');
+            assert.deepStrictEqual(part.body.files.find((f) => f.name === 'shopping-ticks.json').content.map((x) => x.item), ['oats'], 'what A ticked');
             const plans = part.body.files.find((f) => f.name === 'plans.json').content;
             assert.strictEqual(plans.length, 1);
             assert.strictEqual(plans[0].title, 'person-a');
@@ -88,6 +100,7 @@ async function makeRows(t, subject, title) {
         try {
             await makeRows(t, A, 'person-a');
             await makeRows(t, B, 'person-b');
+            const bPlan = await joinB(t);
             const gone = async (subject) => await t.ctx.s.db.value('SELECT count(*)::int FROM food_plans WHERE owner = $1', [`user:${subject}`]);
 
             const res = await t.get('/internal/events', { method: 'POST', body: bodyOf(deleteEvent), headers: { 'Content-Type': 'application/json', ...signDeliveryHeaders(bodyOf(deleteEvent), SECRET) } });
@@ -97,10 +110,12 @@ async function makeRows(t, subject, title) {
             assert.strictEqual(await t.ctx.s.db.value('SELECT count(*)::int FROM food_pantry WHERE owner = $1', [`user:${A}`]), 0, 'the pantry is gone');
             assert.strictEqual(await t.ctx.s.db.value('SELECT count(*)::int FROM food_recipe_suggestions WHERE subject_id = $1', [`user:${A}`]), 0, 'the recipe suggestions are gone');
             assert.strictEqual(await gone(B), 1, 'someone else\'s plan stays');
+            assert.strictEqual(await t.ctx.s.db.value('SELECT count(*)::int FROM food_plan_members WHERE plan_id = $1', [bPlan]), 0, 'A left B\'s household');
+            assert.strictEqual(await t.ctx.s.db.value('SELECT count(*)::int FROM food_plan_ticks WHERE plan_id = $1', [bPlan]), 0, 'A\'s tick on B\'s list is gone');
 
             const confirmation = stub.calls.find((c) => c.url === `/internal/account-deletions/${DEL}/confirmations`);
             assert.ok(confirmation, 'the confirmation was sent');
-            assert.deepStrictEqual(confirmation.body.erased, { food_plans: 1, food_pantry: 1, food_recipe_suggestions: 1 });
+            assert.deepStrictEqual(confirmation.body.erased, { food_plans: 1, food_pantry: 1, food_recipe_suggestions: 1, food_plan_members: 1, food_plan_ticks: 1 });
             assert.deepStrictEqual(confirmation.body.retained, {});
             assert.ok(!Number.isNaN(Date.parse(confirmation.body.completed_at)));
 
