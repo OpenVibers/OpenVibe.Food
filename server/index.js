@@ -6,6 +6,7 @@
  */
 const { createApp } = require('./app');
 const { gracefulStop } = require('openvibe-sdk/service');
+const { startTelemetryRetention } = require('openvibe-sdk/telemetry');
 
 /**
  * The process stop (openvibe-sdk/service): the HTTP drain runs, then the timers clear, the Events subscriptions stop,
@@ -17,7 +18,7 @@ function createLifecycle({ server, ctx, exit, signals, timers, extra = [] }) {
     const clearTimers = timers || [ctx.geoPruneTimer].filter(Boolean);
     return gracefulStop({
         name: 'OpenVibe.Food', server, deadlineExitCode: 0, exit, signals, deadlineMs: 10_000,
-        close: [() => { for (const t of clearTimers) clearInterval(t); }, () => ctx.keys.client.stop(), () => ctx.s.close(), ...extra],
+        close: [() => { for (const t of clearTimers) clearInterval(t); }, () => ctx.keys.client.stop(), async () => { if (ctx.retention) await ctx.retention.stop(); if (ctx.telemetry) await ctx.telemetry.stop(); }, () => ctx.s.close(), ...extra],
     });
 }
 
@@ -30,6 +31,8 @@ async function start() {
     });
     server.keepAliveTimeout = 65_000;
     ctx.keys.client.start();
+    // telemetry_samples rows older than 30 days go: a minute after start, then daily (openvibe-sdk/telemetry).
+    ctx.retention = startTelemetryRetention({ db: ctx.s.db, log: ctx.log || console });
 
     // Subscribe to the two ADR-033 topics at OpenVibe.Events (idempotent; off without FOOD_EVENTS_URL and
     // FOOD_EVENTS_SECRET). The consumer itself is mounted in server/app.js.
