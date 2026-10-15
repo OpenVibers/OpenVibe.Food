@@ -29,6 +29,7 @@ const NAV = [
     { label: 'Food list', href: '/foods' },
     { label: 'Cupboard', href: '/pantry' },
     { label: 'Recipes', href: '/recipes' },
+    { label: 'Delivery', href: '/delivery' },
     { label: 'What shipped', href: '/updates' },
 ];
 

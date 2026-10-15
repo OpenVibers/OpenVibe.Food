@@ -32,6 +32,7 @@ const { searchPlaces, safeUrl, ATTRIBUTION } = require('../food/places');
 const { matchPantry } = require('../food/pantry-match');
 const { suggestRecipes } = require('../food/recipes');
 const store = require('../food/store');
+const delivery = require('../food/delivery');
 
 const SITE_NAME = 'OpenVibe.Food';
 const TAGLINE = 'What should we eat?';
@@ -99,7 +100,7 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
         const hero = showcase.hero({
             eyebrow: `${SITE_NAME} · ${TAGLINE}`,
             title: 'Eat well.', accent: 'Spend less.',
-            lede: 'Find the food banks, pantries and budget grocery stores near you on a map anyone can edit. Plan meals for one person, a couple or a household for the days ahead, with the shopping list and what it costs. Tell it what is already in your cupboard and see what you can make.',
+            lede: 'Find food banks and budget grocers near you, plan meals with the shopping list and its cost, cook from what is in your cupboard, and compare every delivery app at once.',
             actions: [
                 { label: 'Find food near you', href: '/near', primary: true },
                 { label: 'Plan a week', href: '/plan' },
@@ -118,12 +119,12 @@ ${raw(showcase.features({
                 title: 'Everything food',
                 lede: 'Six things, all working today: no card, no account needed to look around.',
                 items: [
-                    { icon: 'ov:location', title: 'Food near you', text: 'Food banks, soup kitchens, community fridges and free pantry boxes, plus the budget grocery stores, with distance, address and opening hours.', href: '/near' },
-                    { icon: 'ov:page', title: 'A meal planner', text: 'One person, a couple or a group, for up to fourteen days. It covers all six food groups, writes the shopping list and estimates what it costs.', href: '/plan' },
-                    { icon: 'ov:tools', title: 'A food list you can read', text: 'Every item with its nutrition per serving and per 100 g, the typical price band and the cheapest of the five budget chains.', href: '/foods' },
-                    { icon: 'ov:check', title: 'Plan together', text: 'Share a saved plan with your household: everyone sees it, and ticks the shopping list off as they buy.', href: '/plan/saved' },
-                    { icon: 'ov:account', title: 'Your cupboard', text: 'Keep a list of what you have. Sign in and it says plainly which simple things you can already make, and what one item would unlock.', href: '/pantry' },
-                    { icon: 'ov:ai', title: 'Recipe ideas', text: 'Tell it what you feel like and it suggests up to three recipes from your cupboard, with what you would still need to buy and its typical cost. Suggested by AI, so check before you cook.', href: '/recipes' },
+                    { icon: 'ov:location', title: 'Food near you', text: 'Food banks, soup kitchens, community fridges and free pantry boxes, plus budget grocers, with hours.', href: '/near' },
+                    { icon: 'ov:page', title: 'A meal planner', text: 'Up to fourteen days for one person to a group, with the shopping list and its cost. Share it, and your household ticks it off together.', href: '/plan' },
+                    { icon: 'ov:tools', title: 'A food list you can read', text: 'Nutrition per serving and per 100 g, the typical price, and the cheapest budget chain for each item.', href: '/foods' },
+                    { icon: 'ov:account', title: 'Your cupboard', text: 'List what you have and see what you can make now, and what one more item unlocks.', href: '/pantry' },
+                    { icon: 'ov:search', title: 'Delivery, compared', text: 'Search DoorDash, Uber Eats, Grubhub and more at once, and compare meal kits.', href: '/delivery' },
+                    { icon: 'ov:ai', title: 'Recipe ideas', text: 'Up to three recipes from your cupboard, with what to buy and its cost. Suggested by AI: check before you cook.', href: '/recipes' },
                 ],
             }))}
 ${raw(showcase.cta({
@@ -598,6 +599,34 @@ ${row.recipes.length ? html`<div class="recipe-grid">${row.recipes.map(recipeBlo
 </section>`)}` : html`<p class="muted">No ideas yet. Say what you feel like above, or just press Suggest recipes.</p>`}`,
         });
     }
+
+    // ── Delivery and meal kits, compared (server/food/delivery.js): every app's own search, never their data ──
+    r.get('/delivery', (req, res) => {
+        const q = delivery.cleanQuery(req.query.q);
+        const links = delivery.linksFor(q);
+        const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
+        const kitRow = (k) => html`<li class="dv-kit"><span class="dv-tier dv-${k.tier}">${delivery.TIER_TEXT[k.tier]}</span>
+<span class="dv-kit-main"><a class="dv-kit-name" href="${k.plans}" target="_blank" rel="noopener nofollow">${k.name} ↗</a><span class="muted small">${k.what}</span></span>
+<a class="dv-watch small" href="${WATCH_NEW}?${new URLSearchParams({ template: 'page', url: k.plans, name: `Food: ${k.name} prices` })}">Watch its prices</a></li>`;
+        page(req, res, {
+            title: q ? `“${q}” on every delivery app` : 'Delivery and meal kits, compared',
+            description: 'Search DoorDash, Uber Eats, Grubhub, Seamless, Caviar and Instacart at once, and compare meal kits from EveryPlate and Dinnerly to HelloFresh, Home Chef, Green Chef and Factor.',
+            index: !q, cache: q ? null : cache.htmlHeaders({ maxAge: 300 }),
+            crumbs: [{ label: 'Home', href: '/' }, { label: 'Delivery' }],
+            styles: [showcase.STYLESHEET], localStyles: ['css/delivery.css'],
+            body: html`<h1>${q ? html`“${q}” on every delivery app` : 'Delivery and meal kits, compared'}</h1>
+<p class="lede">Type it once: every delivery app opens its own search for it, in a new tab. Prices, fees and your address stay on each app, so you see your real total where you are signed in.</p>
+<form class="dv-form" method="get" action="/delivery" role="search"><label for="dv-q">A dish, a restaurant or groceries</label>
+<div class="dv-row"><input id="dv-q" name="q" type="search" maxlength="120" required placeholder="pad thai, Chipotle, eggs and milk" value="${q}"><button class="sc-btn sc-primary" type="submit">Search every app</button></div></form>
+${links.length ? html`<ul class="dv-apps">${links.map((l) => html`<li class="dv-app"><a class="dv-open" href="${l.url}" target="_blank" rel="noopener nofollow"><span class="dv-name">${l.name}</span><span class="dv-host">${hostOf(l.url)} ↗</span></a><p class="dv-best muted small">${l.best}</p></li>`)}</ul>
+<p class="muted small">Compare the totals each app shows you, delivery and service fees included. For coupon codes on an app's own page, the <a href="https://github.com/OpenVibers/OpenVibe.Extensions/releases/latest">OpenVibe Companion</a> browser extension shows what OpenVibe.Coupons knows for it.</p>` : ''}
+<section aria-labelledby="h-kits"><h2 id="h-kits">Meal kits and prepared meals</h2>
+<p class="muted">Boxes of recipes and ingredients, or meals ready to heat. Prices change with the box size and the week, so each links to its own plans page; OpenVibe.Watch can tell you when a price changes.</p>
+<ul class="dv-kits">${delivery.KITS.map(kitRow)}</ul>
+<p class="muted small">Budget kits usually cost the least per serving; premium ones cost more for organic or special-diet food, and prepared meals cost more again. The first box is often heavily discounted, so compare the price from the second week.</p></section>
+<p class="muted small">Cooking from what you have is cheaper still: <a href="/pantry">your cupboard</a>, <a href="/recipes">recipe ideas</a> and <a href="/plan">a meal plan</a> with its shopping list.</p>`,
+        });
+    });
 
     r.get('/recipes', (req, res) => recipesPage(req, res, { saved: !!req.query.saved, error: typeof req.query.error === 'string' ? req.query.error : null }));
 
