@@ -31,7 +31,8 @@ function aiStub() {
                 output: {
                     recipes: [
                         { title: i === 2 ? 'Beans and Rice' : `Beans and rice ${i}`, serves: 4, minutes: 25,
-                            ingredients: [{ name: 'Rice', amount: '2 cups', from_pantry: false, citations: [at('white-rice')] }, { name: 'Beans', amount: '1 can', from_pantry: false, citations: [at('canned-beans')] }],
+                            // The cupboard is empty: a cited food marked "from the cupboard" is still a food from the list; water is a basic.
+                            ingredients: [{ name: 'Rice', amount: '2 cups', from_pantry: false, citations: [at('white-rice')] }, { name: 'Beans', amount: '1 can', from_pantry: true, citations: [at('canned-beans')] }, { name: 'Water (or broth)', amount: '2 cups', from_pantry: false, citations: [] }],
                             steps: ['Cook the rice.', 'Warm the beans.', 'Serve together.'], notes: 'Add hot sauce.' },
                         { title: 'Mystery stew', serves: 2, minutes: 40, ingredients: [{ name: 'Saffron', amount: 'a pinch', from_pantry: true, citations: [] }, { name: 'Rice', amount: '1 cup', from_pantry: false, citations: [at('white-rice')] }], steps: ['Stew it.'] },
                     ],
@@ -49,7 +50,7 @@ function aiStub() {
     const kim = t.network.addUser('kim');
     const boss = t.network.addUser('boss', { role: 'admin' });
     try {
-        await check('a theme becomes costed recipes from the food list; one leaning on "your cupboard" is dropped', async () => {
+        await check('a theme becomes costed recipes from the food list and household basics; one with an unlisted ingredient is dropped', async () => {
             assert.ok(at('white-rice') >= 0 && at('canned-beans') >= 0, 'the fixture foods are in the list');
             const kept = await t.ctx.library.tick({ force: true });
             assert.deepStrictEqual(kept.map((x) => x.title), ['Beans and rice 1']);
@@ -61,7 +62,8 @@ function aiStub() {
             const row = await t.ctx.library.bySlug('beans-and-rice-1');
             assert.deepStrictEqual(row.to_buy.map((b) => b.slug).sort(), ['canned-beans', 'white-rice']);
             assert.ok(row.cost > 0);
-            assert.deepStrictEqual(row.ingredients.map((i) => i.food), ['white-rice', 'canned-beans']);
+            assert.deepStrictEqual(row.ingredients.map((i) => i.food), ['white-rice', 'canned-beans', null]);
+            assert.strictEqual(row.ingredients[2].basic, true);
         });
 
         await check('themes take turns; a restart does not ask again early; a failure makes nothing', async () => {
