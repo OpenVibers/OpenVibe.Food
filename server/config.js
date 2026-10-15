@@ -65,6 +65,9 @@ function load(env = process.env) {
         networkInternalUrl: trim(env.OV_NETWORK_INTERNAL_URL || 'http://127.0.0.1:4000'),
         // OpenVibe.Search's owner API (server/food/search-index.js): the checked library recipes as documents. Unset: off.
         search: { url: trim(env.FOOD_SEARCH_URL || '') },
+        // OpenVibe.Chat (server/food/household-chat.js): a household's room, made as its owner through Chat's room API.
+        // `internalUrl` is where this service calls it (the loopback address in production), `publicUrl` what people open.
+        chat: { internalUrl: trim(env.FOOD_CHAT_INTERNAL_URL || 'http://127.0.0.1:4400'), publicUrl: trim(env.FOOD_CHAT_PUBLIC_URL || 'https://openvibe.chat') },
         networkIssuer: trim(env.OV_NETWORK_ISSUER || networkUrl),
         // The audience this service's app, agent and service tokens carry.
         audience: env.FOOD_AUDIENCE || 'openvibe.food',

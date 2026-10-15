@@ -69,6 +69,7 @@ async function planForViewer(s, viewer, id) {
     const m = await s.db.maybe('SELECT 1 AS ok FROM food_plan_members WHERE plan_id = $1 AND member = $2', [id, viewer]);
     return m ? { row, role: 'member' } : null;
 }
+const setChatRoom = (s, owner, id, slug) => s.db.exec('UPDATE food_plans SET chat_room = $3 WHERE owner = $1 AND id = $2', [owner, id, slug]);
 const setShareHash = (s, owner, id, hash) => s.db.exec('UPDATE food_plans SET share_hash = $3 WHERE owner = $1 AND id = $2', [owner, id, hash]);
 const planByShareHash = (s, hash) => s.db.maybe('SELECT * FROM food_plans WHERE share_hash = $1', [hash]);
 const listMembers = (s, planId) => s.db.many('SELECT member, name, joined_at FROM food_plan_members WHERE plan_id = $1 ORDER BY joined_at', [planId]);
@@ -144,7 +145,7 @@ const recipeSuggestionToWire = (row) => ({
 module.exports = {
     cacheGet, cachePut, cachePrune, startCachePrune,
     insertPlan, planRow, listPlans, deletePlan, planToWire,
-    planForViewer, setShareHash, planByShareHash, listMembers, listSharedPlans, addMember, removeMember, listTicks, tick, untick,
+    planForViewer, setChatRoom, setShareHash, planByShareHash, listMembers, listSharedPlans, addMember, removeMember, listTicks, tick, untick,
     MEMBERS_MAX, SHARED_PLANS_MAX,
     getPantry, pantryRows, setPantry, addPantryItem,
     insertRecipeSuggestion, recipeSuggestionRow, listRecipeSuggestions, countRecipeSuggestionsSince, recipeSuggestionToWire,

@@ -29,6 +29,7 @@ pantry with a deterministic "what can I make". Everything is server-rendered and
 | Recipe library | [/recipes/library](server/http/library-routes.js), [server/food/library.js](server/food/library.js) | Every six hours the next of 35 themes goes to `food.suggest_recipes` with an empty cupboard, so every ingredient must be a food from the list (a recipe with anything else is dropped); Food prices what to buy from its typical prices. Labelled as written by AI, noindex until a member of staff marks one checked (then indexed with Recipe JSON-LD and in the sitemap); staff can hide one. `/recipes/library.json?since=` lists the published ones added since a time (oldest first, up to 100): OpenVibe.Blog's budget-recipes desk reads it. Checked recipes are OpenVibe.Search documents (owner `food`, type `recipe`) through Search's owner API ([server/food/search-index.js](server/food/search-index.js), `FOOD_SEARCH_URL`, `search.document.write`) |
 | Delivery, compared | [/delivery](server/http/pages.js), [server/food/delivery.js](server/food/delivery.js) | One query opens DoorDash, Uber Eats, Grubhub, Seamless, Caviar and Instacart's own searches in new tabs (URL forms checked in a real browser on 2026-10-15; Postmates is Uber Eats now, Gopuff, Slice and ezCater have no stable search link). Meal kits and prepared meals (EveryPlate, Dinnerly, HelloFresh, Home Chef, Marley Spoon, Blue Apron, Hungryroot, Green Chef, Purple Carrot, Factor) by tier, each with its plans page and an OpenVibe.Watch link for price changes. Food fetches none of them; published per-serving prices conflict between sources, so none are shown |
 | The OpenStreetMap client | [server/food/upstream.js](server/food/upstream.js) | Paced, cached, identified, bounded. With the Open Food Facts barcode lookup (one product read per barcode, cached a day; data under the Open Database License, credited on the page), these are the only outbound calls besides OpenVibe's own services |
+| Household chat | [/plan/p/:id](server/http/pages.js), [server/food/household-chat.js](server/food/household-chat.js) | The owner of a shared plan starts a private room on OpenVibe.Chat for the household, made through Chat's room API as the owner, with every member added by account subject (and anyone who joins later, when the owner opens the plan) and **Pantry**, an AI member linked to the plan. Writing `@pantry` there asks it: Chat reads the household from `GET /internal/households/:id/chat-context` (`food.household.read`, Chat's service token) — the plan, what is still to buy and every member's cupboard — and OpenVibe.AI answers. The plan's page links the room for everyone |
 | Store | [server/food/store.js](server/food/store.js), [migrations/](migrations/) | `food_geo_cache`, `food_plans`, `food_pantry`, `food_recipe_suggestions` |
 | Platform | the skeleton | Sign-in with OpenVibe.Network, the OpenVibe Frame, limits, readiness, discovery, deploy files |
 
@@ -94,6 +95,8 @@ declares the same four plus one proposed:
 - `food.plan.write` — save a plan
 - `food.pantry.read` — read a caller's pantry
 - `food.pantry.write` — replace a caller's pantry
+- `food.household.read` — a household's pantry and plan as text for its OpenVibe.Chat room's AI member (internal,
+  loopback only, a service token; granted to Chat)
 - `food.recipes.suggest` — ask the network's AI for recipe ideas from a caller's pantry (proposed; not yet registered
   in openvibe-contracts, so an app token cannot be granted it until the manifest ships)
 
@@ -166,6 +169,8 @@ See [.env.example](.env.example). Required in production: `OV_OAUTH_CLIENT_SECRE
 Network), `BASE_URL`, `DATABASE_URL` and `DATABASE_DIRECT_URL`. `OV_AI_INTERNAL_URL` (the internal OpenVibe.AI URL)
 turns the recipe ideas feature on; unset, the recipe routes answer 503 `food.ai_off`. `FOOD_NOMINATIM_URL` and
 `FOOD_OVERPASS_URL` default to the public OSM hosts; tests point them at a stand-in and never reach the internet.
+`FOOD_CHAT_INTERNAL_URL` (default `http://127.0.0.1:4400`) is where the household chat calls OpenVibe.Chat's room API,
+and `FOOD_CHAT_PUBLIC_URL` (`https://openvibe.chat`) what the plan's page links.
 
 ## Development
 
