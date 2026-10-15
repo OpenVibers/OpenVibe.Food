@@ -494,7 +494,7 @@ ${f.tags.length ? html`<p class="tags">${f.tags.map((t) => badge(t))}</p>` : ''}
     });
 
     // ── Your cupboard ────────────────────────────────────────
-    async function pantryPage(req, res, { saved = false } = {}) {
+    async function pantryPage(req, res, { saved = false, added = null } = {}) {
         if (!signedIn(req)) {
             return page(req, res, {
                 title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET],
@@ -511,10 +511,19 @@ ${foods.FOODS.filter((f) => f.group === id).map((f) => html`<label class="pantry
 </fieldset>`);
         const recipeLine = (x) => html`<li><b>${x.name}</b> — serves ${x.serves}, about ${x.minutes} minutes${x.missing && x.missing.length ? html` · missing ${x.missing.join(', ')}` : ''}</li>`;
         page(req, res, {
-            title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET],
+            title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET], localStyles: ['css/pantry.css'], scripts: ['js/barcode-scan.js'],
             body: html`<h1>Your cupboard</h1>
 <p class="lede">Tick what you have. Nothing leaves your account; the matching is done here, not by a model.</p>
 ${saved ? notice('Cupboard saved.', 'ok') : ''}
+${added && foods.getFood(added) ? notice(html`Added <b>${foods.getFood(added).name}</b> to your cupboard.`, 'ok') : ''}
+<form method="get" action="/pantry/barcode" class="pantry-barcode" role="search">
+<label for="bc">Add by barcode</label>
+<div class="pantry-barcode-row"><input id="bc" name="code" inputmode="numeric" autocomplete="off" pattern="[0-9 \-]{8,18}" maxlength="18" placeholder="The numbers under the bars" required>
+<button class="sc-btn" type="submit">Look it up</button>
+<button class="sc-btn" type="button" id="bc-scan" hidden>Scan with camera</button></div>
+<video id="bc-video" playsinline muted hidden></video>
+<p class="muted small">Looks the product up on <a href="https://world.openfoodfacts.org/">Open Food Facts</a> and asks you before adding it. Only the barcode is sent.</p>
+</form>
 <p><a href="/recipes">Get recipe ideas</a></p>
 <form method="post" action="/pantry" class="pantry-form">
 ${groupsBlock}
@@ -528,7 +537,44 @@ ${match.rest.length ? html`<h3>Further off</h3><ul>${match.rest.slice(0, 6).map(
         });
     }
 
-    r.get('/pantry', (req, res) => pantryPage(req, res, { saved: !!req.query.saved }));
+    r.get('/pantry', (req, res) => pantryPage(req, res, { saved: !!req.query.saved, added: typeof req.query.added === 'string' ? req.query.added : null }));
+
+    // ── Pantry by barcode (server/food/barcode.js) ───────────
+    // Look a barcode up and ask before adding: the match is preselected, any other item can be picked instead.
+    r.get('/pantry/barcode', async (req, res) => {
+        res.set('Cache-Control', cache.htmlHeaders({ private: true }));
+        if (!signedIn(req)) return res.redirect(303, `/auth/login?next=${encodeURIComponent('/pantry')}`);
+        let found = null;
+        let problem = null;
+        try { found = await ctx.barcodes.lookup(req.query.code); } catch (err) { problem = err.message; }
+        const pick = found && found.match ? foods.getFood(found.match) : null;
+        const options = foods.FOODS.map((f) => html`<option value="${f.slug}"${pick && pick.slug === f.slug ? raw(' selected') : ''}>${f.name}</option>`);
+        page(req, res, {
+            title: 'Add by barcode', crumbs: [{ label: 'Your cupboard', href: '/pantry' }, { label: 'Add by barcode' }], styles: [showcase.STYLESHEET], localStyles: ['css/pantry.css'],
+            body: html`<h1>Add by barcode</h1>
+${problem ? notice(problem, 'warn') : ''}
+${found && found.found ? html`<p class="lede"><b>${found.name || 'A product with no name listed'}</b>${found.brand ? html` · ${found.brand}` : ''}${found.quantity ? html` · ${found.quantity}` : ''}</p>
+<p class="muted small">Barcode ${found.code}, from <a href="${found.url}" rel="noopener nofollow">Open Food Facts</a> (Open Database License).</p>
+${pick ? html`<p>That is <b>${pick.name}</b> on Food's list.</p>` : html`<p>It does not match an item on Food's list by itself. Pick the closest one, or go back.</p>`}`
+        : found ? html`<p class="lede">Open Food Facts does not know barcode ${found.code} yet.</p>
+<p class="muted small">You can <a href="${found.url}" rel="noopener nofollow">add it there</a> for everyone, or pick the item from the list below.</p>` : ''}
+${found ? html`<form method="post" action="/pantry/items" class="pantry-confirm">
+<label for="item">Add to your cupboard as</label>
+<select id="item" name="item">${pick ? '' : html`<option value="" selected disabled>Choose an item</option>`}${options}</select>
+<button class="sc-btn sc-primary" type="submit">Add to my cupboard</button></form>` : ''}
+<p><a href="/pantry">Back to your cupboard</a></p>`,
+        });
+    });
+
+    r.post('/pantry/items', express.urlencoded({ extended: false, limit: '4kb' }), async (req, res) => {
+        res.set('Cache-Control', cache.htmlHeaders({ private: true }));
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fpantry');
+        if (!sameOrigin(req, config.baseUrl)) return res.status(403).type('text/plain').send('Add to a cupboard from openvibe.food itself.');
+        const item = foods.getFood(String((req.body && req.body.item) || ''));
+        if (!item) return res.redirect(303, '/pantry');
+        await store.addPantryItem(s, ownerOf(req), item.slug);
+        return res.redirect(303, `/pantry?added=${encodeURIComponent(item.slug)}`);
+    });
 
     r.post('/pantry', express.urlencoded({ extended: false, limit: '64kb' }), async (req, res) => {
         res.set('Cache-Control', cache.htmlHeaders({ private: true }));

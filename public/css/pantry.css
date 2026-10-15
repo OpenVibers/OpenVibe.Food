@@ -1,0 +1,9 @@
+/* OpenVibe.Food — the cupboard's barcode entry and its confirm page only (/pantry, /pantry/barcode), so app.css stays inside its budget. */
+.pantry-barcode { margin: 12px 0 16px; max-width: 560px; }
+.pantry-barcode label { display: block; font-weight: 700; margin-bottom: 4px; }
+.pantry-barcode-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.pantry-barcode-row input { flex: 1 1 200px; min-width: 0; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border-light, #2c3d5c); background: var(--bg-secondary, #0f1729); color: inherit; }
+#bc-video { display: block; width: 100%; max-width: 420px; margin-top: 10px; border-radius: 12px; background: #000; }
+#bc-video[hidden] { display: none; }
+.pantry-confirm { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+.pantry-confirm select { font: inherit; padding: 8px 10px; border-radius: 10px; max-width: 100%; }
