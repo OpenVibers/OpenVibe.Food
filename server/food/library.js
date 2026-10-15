@@ -2,8 +2,9 @@
 /**
  * The recipe library (the owner's ask: "an AI recipe system" for OpenVibe.Food). Every few hours the next theme in THEMES
  * goes to OpenVibe.AI's food.suggest_recipes with an empty cupboard, so every ingredient has to be a food from Food's own
- * list (server/food/recipes.js validates that strictly; an ingredient the AI could not tie to the list drops the whole
- * recipe here, so a recipe never quietly misses something). Food prices what there is to buy from its typical prices,
+ * list, cited by its number (the cupboard flag is ignored: the cupboard is empty), or a household basic from the tap or
+ * the shaker (water, salt, pepper), which costs nothing. Any other ingredient the AI could not tie to the list drops the
+ * whole recipe, so a recipe never quietly misses something. Food prices what there is to buy from its typical prices,
  * never from anything the model said. Recipes are labelled as AI and stay noindex until a member of staff marks one
  * reviewed; staff may hide one.
  *
@@ -11,7 +12,8 @@
  *   list(), bySlug(), review(), setHidden()
  */
 const crypto = require('crypto');
-const { buildSources, validateSuggestions } = require('./recipes');
+const { buildSources, COST_NOTE } = require('./recipes');
+const { getFood, round } = require('./foods');
 
 const THEMES = [
     'a one-pot dinner for four', 'a quick breakfast with eggs', 'a vegetarian chili', 'a packed lunch for work or school',
@@ -24,6 +26,8 @@ const THEMES = [
     'a breakfast burrito', 'a chicken dinner', 'a dinner from canned fish', 'a dessert from pantry staples',
 ];
 const EVERY_MS = 6 * 3_600_000;
+// Household basics a recipe may use without the food list: from the tap or the shaker, no cost.
+const BASICS = /^(?:cold |hot |boiling |warm )?(?:water|tap water|ice|salt|pepper|black pepper|salt and pepper|salt & pepper)\b/i;
 
 const clean = (v, n) => (v == null ? null : String(v).replace(/\s+/g, ' ').trim().slice(0, n) || null);
 const slugify = (s) => String(s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70).replace(/-+$/, '');
@@ -49,23 +53,44 @@ function createLibrary({ s, ai, log = console }) {
         return [...THEMES].sort((a, b) => (last.get(a) < last.get(b) ? -1 : 1))[0];
     }
 
+    /**
+     * One recipe from the AI's answer, or null: every ingredient cites a food from the list (the first valid citation
+     * names it) or is a household basic; at least one food and one step. What to buy is each cited food once, priced
+     * from the food list.
+     */
+    function fromAnswer(r, sources) {
+        if (!r || typeof r !== 'object') return null;
+        const ingredients = [];
+        for (const i of Array.isArray(r.ingredients) ? r.ingredients : []) {
+            if (!i || typeof i !== 'object') continue;
+            const name = clean(i.name, 120);
+            const cite = (Array.isArray(i.citations) ? i.citations : []).find((c) => Number.isInteger(c) && c >= 0 && c < sources.length);
+            const slug = cite === undefined ? null : sources[cite].source_id;
+            if (slug && getFood(slug)) ingredients.push({ name: name || getFood(slug).name, amount: clean(i.amount, 60), food: slug });
+            else if (name && BASICS.test(name)) ingredients.push({ name, amount: clean(i.amount, 60), food: null, basic: true });
+            else return null;
+        }
+        const steps = (Array.isArray(r.steps) ? r.steps : []).map((x) => clean(x, 600)).filter(Boolean).slice(0, 20);
+        if (!ingredients.some((i) => i.food) || !steps.length) return null;
+        const toBuy = [...new Set(ingredients.map((i) => i.food).filter(Boolean))]
+            .map((slug) => { const f = getFood(slug); return { slug, name: f.name, price: f.price == null ? null : round(f.price, 2) }; })
+            .sort((a, b) => (a.name < b.name ? -1 : 1));
+        return {
+            title: clean(r.title, 120), serves: intIn(r.serves, 1, 12), minutes: intIn(r.minutes, 1, 600), ingredients, steps, notes: clean(r.notes, 600),
+            to_buy: toBuy, cost: round(toBuy.reduce((n, x) => n + (x.price || 0), 0), 2), cost_partial: toBuy.some((x) => x.price == null),
+        };
+    }
+
     async function save(theme, runId, r) {
-        // Everything comes from the food list: a recipe the validator kept only through "from your cupboard" is dropped.
-        if (r.ingredients.some((i) => i.from_pantry || !i.citations.length)) return null;
-        const sources = buildSources();
-        const title = clean(r.title, 120);
+        const title = r.title;
         const base = slugify(title);
         if (!title || !base) return null;
         if (await s.db.maybe('SELECT 1 FROM food_library_recipes WHERE slug = $1', [base])) return null;   // the same dish again
-        const ingredients = r.ingredients.map((i) => ({ name: clean(i.name, 120) || '', amount: clean(i.amount, 60), food: (sources[i.citations[0]] || {}).source_id || null }));
-        const steps = r.steps.map((x) => clean(x, 600)).filter(Boolean).slice(0, 20);
-        const row = {
-            id: `lib_${crypto.randomBytes(8).toString('hex')}`, slug: base, title, theme, serves: intIn(r.serves, 1, 12), minutes: intIn(r.minutes, 1, 600),
-            ingredients, steps, notes: clean(r.notes, 600), to_buy: r.to_buy, cost: r.to_buy_cost, cost_partial: Boolean(r.to_buy_cost_partial),
-        };
+        const { ingredients, steps } = r;
+        const row = { id: `lib_${crypto.randomBytes(8).toString('hex')}`, slug: base, theme, ...r };
         await s.db.query(`INSERT INTO food_library_recipes (id, slug, title, theme, serves, minutes, ingredients, steps, notes, to_buy, cost, cost_partial, ai_run_id, created_at)
                           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10::jsonb, $11, $12, $13, $14) ON CONFLICT (slug) DO NOTHING`,
-        [row.id, row.slug, row.title, theme, row.serves, row.minutes, JSON.stringify(ingredients), JSON.stringify(steps), row.notes, JSON.stringify(row.to_buy), row.cost, row.cost_partial, runId || null, s.iso()]);
+        [row.id, row.slug, title, theme, row.serves, row.minutes, JSON.stringify(ingredients), JSON.stringify(steps), row.notes, JSON.stringify(row.to_buy), row.cost, row.cost_partial, runId || null, s.iso()]);
         return row;
     }
 
@@ -75,9 +100,13 @@ function createLibrary({ s, ai, log = console }) {
         let run = null;
         try {
             run = await ai.run('food.suggest_recipes', input, { target: { service: 'food', type: 'library', id: slugify(theme) } });
-            const out = validateSuggestions(run && run.output, { sources: input.sources, pantry: [] });
+            const answer = run && run.output && Array.isArray(run.output.recipes) ? run.output.recipes : [];
             const kept = [];
-            for (const r of out.recipes) { const row = await save(theme, run && run.runId, r); if (row) kept.push(row); }
+            for (const raw of answer.slice(0, 3)) {
+                const r = fromAnswer(raw, input.sources);
+                const row = r && await save(theme, run && run.runId, r);
+                if (row) kept.push(row);
+            }
             await s.db.query('INSERT INTO food_library_runs (theme, ai_run_id, made, created_at) VALUES ($1, $2, $3, $4)', [theme, (run && run.runId) || null, kept.length, s.iso()]);
             return kept;
         } catch (err) {
@@ -131,4 +160,4 @@ function createLibrary({ s, ai, log = console }) {
     };
 }
 
-module.exports = { createLibrary, THEMES, slugify };
+module.exports = { createLibrary, THEMES, slugify, BASICS, COST_NOTE };
