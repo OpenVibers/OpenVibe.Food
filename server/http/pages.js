@@ -494,7 +494,7 @@ ${f.tags.length ? html`<p class="tags">${f.tags.map((t) => badge(t))}</p>` : ''}
     });
 
     // ── Your cupboard ────────────────────────────────────────
-    async function pantryPage(req, res, { saved = false, added = null } = {}) {
+    async function pantryPage(req, res, { saved = false, added = null, addedCount = 0 } = {}) {
         if (!signedIn(req)) {
             return page(req, res, {
                 title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET],
@@ -511,11 +511,12 @@ ${foods.FOODS.filter((f) => f.group === id).map((f) => html`<label class="pantry
 </fieldset>`);
         const recipeLine = (x) => html`<li><b>${x.name}</b> — serves ${x.serves}, about ${x.minutes} minutes${x.missing && x.missing.length ? html` · missing ${x.missing.join(', ')}` : ''}</li>`;
         page(req, res, {
-            title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET], localStyles: ['css/pantry.css'], scripts: ['js/barcode-scan.js'],
+            title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET], localStyles: ['css/pantry.css'], scripts: ['js/barcode-scan.js', 'js/pantry-photo.js'],
             body: html`<h1>Your cupboard</h1>
 <p class="lede">Tick what you have. Nothing leaves your account; the matching is done here, not by a model.</p>
 ${saved ? notice('Cupboard saved.', 'ok') : ''}
 ${added && foods.getFood(added) ? notice(html`Added <b>${foods.getFood(added).name}</b> to your cupboard.`, 'ok') : ''}
+${addedCount > 1 && addedCount <= 80 ? notice(`Added ${addedCount} items to your cupboard.`, 'ok') : ''}
 <form method="get" action="/pantry/barcode" class="pantry-barcode" role="search">
 <label for="bc">Add by barcode</label>
 <div class="pantry-barcode-row"><input id="bc" name="code" inputmode="numeric" autocomplete="off" pattern="[0-9 \-]{8,18}" maxlength="18" placeholder="The numbers under the bars" required>
@@ -524,6 +525,15 @@ ${added && foods.getFood(added) ? notice(html`Added <b>${foods.getFood(added).na
 <video id="bc-video" playsinline muted hidden></video>
 <p class="muted small">Looks the product up on <a href="https://world.openfoodfacts.org/">Open Food Facts</a> and asks you before adding it. Only the barcode is sent.</p>
 </form>
+<form method="post" action="/pantry/photo" class="pantry-photo" id="photo-form">
+<fieldset><legend>Add from a photo or a receipt</legend>
+<div class="pantry-photo-kind"><label><input type="radio" name="kind" value="shelf" checked> A cupboard, fridge or shelf</label>
+<label><input type="radio" name="kind" value="receipt"> A grocery receipt</label></div>
+<input type="file" id="photo-file" accept="image/*" capture="environment" aria-describedby="photo-note">
+<input type="hidden" name="image" id="photo-data">
+<button class="sc-btn" type="submit" id="photo-send" disabled>Read the photo</button>
+<p class="muted small" id="photo-note">OpenVibe.AI reads the photo and lists what it sees from Food's list; you choose what to add. The photo is made smaller on your device first, is not kept, and a receipt's prices, card and store details are never read out. Ten photos a day. Needs JavaScript.</p>
+</fieldset></form>
 <p><a href="/recipes">Get recipe ideas</a></p>
 <form method="post" action="/pantry" class="pantry-form">
 ${groupsBlock}
@@ -537,7 +547,7 @@ ${match.rest.length ? html`<h3>Further off</h3><ul>${match.rest.slice(0, 6).map(
         });
     }
 
-    r.get('/pantry', (req, res) => pantryPage(req, res, { saved: !!req.query.saved, added: typeof req.query.added === 'string' ? req.query.added : null }));
+    r.get('/pantry', (req, res) => pantryPage(req, res, { saved: !!req.query.saved, added: typeof req.query.added === 'string' ? req.query.added : null, addedCount: Number(req.query.added_count) || 0 }));
 
     // ── Pantry by barcode (server/food/barcode.js) ───────────
     // Look a barcode up and ask before adding: the match is preselected, any other item can be picked instead.
@@ -566,14 +576,72 @@ ${found ? html`<form method="post" action="/pantry/items" class="pantry-confirm"
         });
     });
 
+    // ── Pantry by photo or receipt (OpenVibe.AI food.read_pantry_photo) ──
+    // The page's script shrinks the photo on the device and sends it as a data URL; the model names list items by
+    // number; the person ticks what to add. Ten photos a person a day (this process's count).
+    const photoReads = new Map();
+    const PHOTO_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+    r.post('/pantry/photo', express.urlencoded({ extended: false, limit: '4mb' }), async (req, res) => {
+        res.set('Cache-Control', cache.htmlHeaders({ private: true }));
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fpantry');
+        if (!sameOrigin(req, config.baseUrl)) return res.status(403).type('text/plain').send('Send a photo from openvibe.food itself.');
+        const b = req.body || {};
+        const kind = b.kind === 'receipt' ? 'receipt' : 'shelf';
+        const image = typeof b.image === 'string' ? b.image : '';
+        const owner = ownerOf(req);
+        const today = new Date(s.now()).toISOString().slice(0, 10);
+        const used = photoReads.get(owner);
+        const count = used && used.day === today ? used.n : 0;
+        let problem = null;
+        let out = null;
+        if (!PHOTO_RE.test(image) || image.length > 3_500_000) problem = 'That photo did not arrive. Choose it again, and wait until "Read the photo" lights up.';
+        else if (!config.aiUrl || !ctx.ai) problem = 'Reading photos needs OpenVibe.AI, which is not connected here.';
+        else if (count >= 10) problem = 'That is ten photos today. Barcodes and the list below still work.';
+        else {
+            photoReads.set(owner, { day: today, n: count + 1 });
+            try {
+                const run = await ctx.ai.run('food.read_pantry_photo', { image: { data_url: image }, kind, foods: foods.FOODS.map((f) => f.name) }, {
+                    onBehalfOf: { type: 'user', id: owner.replace(/^user:/, '') }, target: { service: 'food', type: 'pantry', id: owner.replace(/^user:/, '') },
+                });
+                out = run && run.output;
+            } catch (err) {
+                if (err && err.name === 'AiRunError') problem = 'OpenVibe.AI could not read that photo just now. Try again in a moment, or use a barcode.';
+                else throw err;
+            }
+        }
+        const seen = new Map();
+        for (const it of (out && Array.isArray(out.items) ? out.items : [])) {
+            const f = Number.isInteger(it && it.food) ? foods.FOODS[it.food] : null;
+            if (f && !seen.has(f.slug)) seen.set(f.slug, { food: f, seen: String(it.seen || '').slice(0, 160), confidence: ['high', 'medium', 'low'].includes(it.confidence) ? it.confidence : 'low' });
+        }
+        const have = new Set(await store.getPantry(s, owner));
+        const unlisted = (out && Array.isArray(out.unlisted) ? out.unlisted : []).map((x) => String(x).slice(0, 120)).filter(Boolean).slice(0, 30);
+        const rows = [...seen.values()];
+        page(req, res, {
+            title: kind === 'receipt' ? 'From your receipt' : 'From your photo', crumbs: [{ label: 'Your cupboard', href: '/pantry' }, { label: 'From a photo' }],
+            styles: [showcase.STYLESHEET], localStyles: ['css/pantry.css'],
+            body: html`<h1>${kind === 'receipt' ? 'From your receipt' : 'From your photo'}</h1>
+${problem ? notice(problem, 'warn') : ''}
+${!problem && rows.length ? html`<p class="lede">OpenVibe.AI saw these from Food's list. Untick anything that is wrong, then add the rest.</p>
+<form method="post" action="/pantry/items" class="pantry-photo-confirm">
+<ul class="pantry-seen">${rows.map((r) => html`<li><label><input type="checkbox" name="item" value="${r.food.slug}"${r.confidence !== 'low' ? raw(' checked') : ''}> <b>${r.food.name}</b>${have.has(r.food.slug) ? html` <span class="muted small">already in your cupboard</span>` : ''}</label>
+<span class="muted small">${r.seen}${r.confidence === 'low' ? ' · not sure' : ''}</span></li>`)}</ul>
+<button class="sc-btn sc-primary" type="submit">Add to my cupboard</button></form>` : ''}
+${!problem && !rows.length ? html`<p class="lede">Nothing from Food's list was clear in that photo.</p>` : ''}
+${unlisted.length ? html`<p class="muted small">Also seen, not on Food's list: ${unlisted.join(', ')}.</p>` : ''}
+<p class="muted small">Read by OpenVibe.AI; the photo was not kept. Check before you cook or shop.</p>
+<p><a href="/pantry">Back to your cupboard</a></p>`,
+        });
+    });
+
     r.post('/pantry/items', express.urlencoded({ extended: false, limit: '4kb' }), async (req, res) => {
         res.set('Cache-Control', cache.htmlHeaders({ private: true }));
         if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fpantry');
         if (!sameOrigin(req, config.baseUrl)) return res.status(403).type('text/plain').send('Add to a cupboard from openvibe.food itself.');
-        const item = foods.getFood(String((req.body && req.body.item) || ''));
-        if (!item) return res.redirect(303, '/pantry');
-        await store.addPantryItem(s, ownerOf(req), item.slug);
-        return res.redirect(303, `/pantry?added=${encodeURIComponent(item.slug)}`);
+        const picked = [...new Set([].concat((req.body && req.body.item) || []).map((v) => foods.getFood(String(v))).filter(Boolean).map((f) => f.slug))].slice(0, 80);
+        if (!picked.length) return res.redirect(303, '/pantry');
+        for (const slug of picked) await store.addPantryItem(s, ownerOf(req), slug);
+        return res.redirect(303, picked.length === 1 ? `/pantry?added=${encodeURIComponent(picked[0])}` : `/pantry?added_count=${picked.length}`);
     });
 
     r.post('/pantry', express.urlencoded({ extended: false, limit: '64kb' }), async (req, res) => {
