@@ -41,6 +41,12 @@ function load(env = process.env) {
         // The two OpenStreetMap services "food near you" stands on (server/food/places.js). Both are open data with
         // published usage policies: Nominatim at most one request a second, Overpass small bounded area queries —
         // server/food/upstream.js paces every call to one host at a time and caches every answer for geoCacheTtlMs.
+        // Pantry by barcode (server/food/barcode.js): Open Food Facts asks for an app name and a contact, and about 100
+        // product reads a minute; lookups are cached a day and capped at perMinute for the whole service.
+        barcode: {
+            userAgent: env.FOOD_BARCODE_USER_AGENT || `OpenVibeFood/0.1 (+${baseUrl}; Contact@OpenVibe.Network)`,
+            perMinute: Math.max(1, int(env.FOOD_BARCODE_PER_MINUTE, 60)),
+        },
         osm: {
             nominatimUrl: trim(env.FOOD_NOMINATIM_URL || 'https://nominatim.openstreetmap.org'),
             overpassUrl: trim(env.FOOD_OVERPASS_URL || 'https://overpass-api.de/api/interpreter'),

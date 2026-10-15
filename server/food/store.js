@@ -105,6 +105,8 @@ const planToWire = (row) => ({
 // ── food_pantry ──────────────────────────────────────────────
 const getPantry = async (s, owner) => (await s.db.many('SELECT item, added_at FROM food_pantry WHERE owner = $1 ORDER BY item', [owner])).map((r) => r.item);
 const pantryRows = (s, owner) => s.db.many('SELECT item, added_at FROM food_pantry WHERE owner = $1 ORDER BY item', [owner]);
+/** Add one item to a person's pantry (pantry by barcode); already there is fine. */
+const addPantryItem = (s, owner, item) => s.db.query('INSERT INTO food_pantry (owner, item, added_at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [owner, item, s.iso()]);
 /** Replace a person's pantry with exactly this list, in one transaction (what PUT means). */
 async function setPantry(s, owner, items) {
     const addedAt = s.iso();
@@ -144,6 +146,6 @@ module.exports = {
     insertPlan, planRow, listPlans, deletePlan, planToWire,
     planForViewer, setShareHash, planByShareHash, listMembers, listSharedPlans, addMember, removeMember, listTicks, tick, untick,
     MEMBERS_MAX, SHARED_PLANS_MAX,
-    getPantry, pantryRows, setPantry,
+    getPantry, pantryRows, setPantry, addPantryItem,
     insertRecipeSuggestion, recipeSuggestionRow, listRecipeSuggestions, countRecipeSuggestionsSince, recipeSuggestionToWire,
 };
