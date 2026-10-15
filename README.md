@@ -43,6 +43,10 @@ Its own PostgreSQL tables, created by [migrations/](migrations/) and written by 
   applied, so a redelivered event changes nothing.
 - `food_recipe_suggestions` (0004) — a person's recipe ideas from OpenVibe.AI (the validated output plus Food's own
   to-buy costs), keeping the last 20 per person.
+- `telemetry_samples` (0006) — request telemetry (openvibe-sdk 0.46, `platform.telemetry-sample@1`): each HTTP request by
+  route template, method and status class, never raw URL; one `http.request` sample a minute per key plus active-
+  requests, p95 latency and event-loop-lag gauges; `/shared`, static assets, health, readiness and `/metrics` excluded;
+  rows older than 14 days deleted daily ([server/app.js](server/app.js) mounts it, [server/index.js](server/index.js) flushes and prunes).
 
 0001 creates no tables. The service is the authority for these rows and for nothing else.
 
