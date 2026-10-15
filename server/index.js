@@ -41,7 +41,9 @@ async function start() {
     // Subscribe to the two ADR-033 topics at OpenVibe.Events (idempotent; off without FOOD_EVENTS_URL and
     // FOOD_EVENTS_SECRET). The consumer itself is mounted in server/app.js.
     const subscriptions = require('./events-consumer').startSubscriptions({ config, port: config.port, secret: config.events.secrets[0] || '' });
-    const extra = [() => { if (subscriptions) subscriptions.stop(); }];
+    // The recipe library writes a theme every six hours (server/food/library.js); off without OpenVibe.AI.
+    ctx.library.start();
+    const extra = [() => { if (subscriptions) subscriptions.stop(); }, () => ctx.library.stop()];
     createLifecycle({ server, ctx, extra });
     return { server, ctx };
 }

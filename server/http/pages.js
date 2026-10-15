@@ -681,7 +681,7 @@ ${r.notes ? html`<div class="recipe-notes small">${raw(markdown(r.notes))}</div>
                 title: 'Recipe ideas', crumbs: [{ label: 'Recipe ideas' }], styles: [showcase.STYLESHEET], localStyles: ['css/recipes.css'],
                 body: html`<h1>Recipe ideas</h1>
 <p class="lede">Tell OpenVibe.Food what you feel like and how many people you are feeding. It suggests up to three recipes from the food list, marks what is already in your cupboard and lists what you would still need to buy, with a typical cost.</p>
-<p><a class="sc-btn sc-primary" href="/auth/login?next=%2Frecipes">Sign in to get recipe ideas</a></p>`,
+<p><a class="sc-btn sc-primary" href="/auth/login?next=%2Frecipes">Sign in to get recipe ideas</a> <a class="sc-btn" href="/recipes/library">Browse the recipe library</a></p>`,
             });
         }
         const rows = (await store.listRecipeSuggestions(s, ownerOf(req), { limit: 20 })).map(store.recipeSuggestionToWire);
@@ -704,7 +704,7 @@ ${error ? notice(problems[error] || 'That did not work. Try again.', 'warn') : '
 <input id="people" name="people" type="number" min="1" max="12" step="1" inputmode="numeric"></div>
 <button class="sc-btn sc-primary" type="submit">Suggest recipes</button>
 </form>
-<p class="muted small">Ideas come from what is in <a href="/pantry">your cupboard</a>. Up to 10 requests a day.</p>
+<p class="muted small">Ideas come from what is in <a href="/pantry">your cupboard</a>. Up to 10 requests a day. Or browse <a href="/recipes/library">the recipe library</a>.</p>
 ${rows.length ? html`<h2>Recent ideas</h2>
 <p class="notice">Suggested by OpenVibe.AI from your cupboard and the food list. Check a recipe before you cook it: cook meat, poultry and eggs through, and mind allergies.</p>
 ${rows.map((row) => html`<section class="recipe-suggestion">
@@ -786,6 +786,8 @@ ${links.length ? html`<ul class="dv-apps">${links.map((l) => html`<li class="dv-
 
     // ── Discovery: robots.txt, sitemap.xml, llms.txt, llms-full.txt ──
     r.use(createDiscoveryRoutes(ctx));
+    // The recipe library (server/food/library.js, http/library-routes.js).
+    require('./library-routes').mountLibrary(r, { ctx, page, config, signedIn, express });
     return r;
 }
 

@@ -86,6 +86,8 @@ async function createApp(opts = {}) {
         audience: 'openvibe.ai', scope: 'ai.run.create ai.run.read', fetchImpl,
     }) : null;
     ctx.ai = opts.ai !== undefined ? opts.ai : createAiClient({ baseUrl: config.aiUrl, tokenClient: aiTokenClient, fetch: fetchImpl });
+    // The recipe library (server/food/library.js): a theme every six hours where the process serves (server/index.js starts it).
+    ctx.library = require('./food/library').createLibrary({ s, ai: ctx.ai, log });
 
     const app = express();
     app.disable('x-powered-by');
