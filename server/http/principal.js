@@ -29,6 +29,7 @@ const CAPABILITIES = [
     'food.pantry.read',     // read a caller's pantry
     'food.pantry.write',    // replace a caller's pantry
     'food.recipes.suggest', // ask the network's AI for recipes from a caller's pantry (proposed; see README)
+    'food.household.read',  // a household's pantry and plan as text, for its OpenVibe.Chat room's AI member (granted to Chat)
 ];
 
 function decodePayload(token) {

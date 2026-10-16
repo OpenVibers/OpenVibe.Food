@@ -153,6 +153,16 @@ async function createApp(opts = {}) {
     // 404 for /internal/ so this is reachable only on 127.0.0.1.
     app.use('/internal/events', accountData.consumer({ secrets: config.events.secrets, send: accountSend, log }));
 
+    // ── A household's pantry and plan for its OpenVibe.Chat room's AI member (food.household.read, granted to Chat) ──
+    // Loopback only like every /internal/ route; a service token with the capability, never a person.
+    app.get('/internal/households/:id/chat-context', principal.middleware, (req, res, next) => (req.principal.kind === 'app' ? next() : contracts.http.sendProblem(res, 403, 'food.service_only', { detail: 'A service token with food.household.read reads this.', ctx: req.ov })), principal.requireCapability('food.household.read'), async (req, res) => {
+        const id = String(req.params.id || '');
+        const out = /^pln_[0-9A-Z]{26}$/.test(id) ? await require('./food/household-chat').contextOf(s, id) : null;
+        if (!out) return contracts.http.sendProblem(res, 404, 'food.household_not_found', { detail: 'No such household.', ctx: req.ov });
+        res.set('Cache-Control', 'no-store');
+        return res.json(out);
+    });
+
     // ── Static assets (content-hashed ?v= → immutable) ──────
     app.use('/shared', require('openvibe-shared/serve').handler());
     app.use(express.static(PUBLIC_DIR, {

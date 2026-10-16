@@ -33,6 +33,7 @@ const { matchPantry } = require('../food/pantry-match');
 const { suggestRecipes } = require('../food/recipes');
 const store = require('../food/store');
 const delivery = require('../food/delivery');
+const householdChat = require('../food/household-chat');
 
 const SITE_NAME = 'OpenVibe.Food';
 const TAGLINE = 'What should we eat?';
@@ -311,10 +312,26 @@ ${table(['Name', 'For', 'Cost', 'Joined'], shared.map((row) => cells(row, row.jo
         return null;
     }
 
+    /** The household's room on OpenVibe.Chat, with Pantry, an AI member that knows the plan and every cupboard. */
+    const chatDeps = (req) => ({ config, token: req.viewer && req.viewer.token, log: ctx.log || console });
+    function chatSection(row, role, members) {
+        const intro = html`<p class="muted small">Pantry, the chat's AI member, knows this plan, what is still to buy and what everyone keeps in their pantry here: write <code>@pantry</code> to ask it what to cook.</p>`;
+        if (row.chat_room) {
+            return html`<h2 id="chat">The household chat</h2>${intro}
+<p><a class="sc-btn sc-primary" href="${config.chat.publicUrl}/r/${encodeURIComponent(row.chat_room)}">Open the household chat</a></p>
+<p class="muted small">A private room on OpenVibe.Chat for ${members.length + 1} ${members.length ? 'people' : 'person'}. ${role === 'owner' ? 'People who join the household are added when you open this page.' : ''}</p>`;
+        }
+        if (role !== 'owner') return html`<h2 id="chat">The household chat</h2><p class="muted small">The plan's owner can start a private chat for the household, with an AI member that knows your pantries.</p>`;
+        return html`<h2 id="chat">The household chat</h2>${intro}
+<form method="post" action="/plan/p/${row.id}/chat"><button class="sc-btn sc-primary" type="submit">Start the household chat</button></form>
+<p class="muted small">It makes a private room on OpenVibe.Chat for you${members.length ? ' and everyone in this household' : ''}. You can add more people and change Pantry in the room's settings.</p>`;
+    }
+
     async function planPage(req, res, got, { link = null, problem = null, status = 200 } = {}) {
         const { row, role } = got;
         const plan = typeof row.plan === 'string' ? JSON.parse(row.plan) : row.plan;
         const [members, ticks] = await Promise.all([store.listMembers(s, row.id), store.listTicks(s, row.id)]);
+        if (role === 'owner' && row.chat_room) householdChat.syncMembers(chatDeps(req), row, members).catch(() => {});
         const ticked = new Map(ticks.map((t) => [t.item, t]));
         const got_ = plan.shopping_list.filter((i) => ticked.has(i.slug)).length;
         const me = ownerOf(req);
@@ -338,6 +355,7 @@ ${planBody(plan, { shopping: false })}
 <li>${role === 'owner' ? 'You' : 'The plan’s owner'} <span class="badge">owner</span></li>
 ${members.map((m) => html`<li>${m.member === me ? 'You' : (m.name || 'Someone')} <span class="muted small">joined ${time(m.joined_at)}</span>${role === 'owner' ? btn('remove', 'Remove', { fields: { member: m.member } }) : ''}</li>`)}
 </ul>
+${chatSection(row, role, members)}
 ${role === 'owner' ? html`${link ? html`<div class="notice ok" role="status"><p><b>Your share link.</b> Anyone signed in with OpenVibe who opens it can join this household. It is shown once: copy it now. A new link replaces it.</p>
 <p class="share-link"><input type="text" readonly value="${link}" aria-label="Share link"></p></div>` : ''}
 <p class="muted small">${row.share_hash ? 'A share link is on.' : 'No share link is on.'} Members see this plan and tick the shopping list; only you change the household.</p>
@@ -372,7 +390,7 @@ ${role === 'owner' ? html`${link ? html`<div class="notice ok" role="status"><p>
         case 'leave':
             if (role === 'member') await store.removeMember(s, row.id, ownerOf(req));
             return res.redirect(303, '/plan/saved');
-        case 'share': case 'unshare': case 'remove': case 'delete':
+        case 'share': case 'unshare': case 'remove': case 'delete': case 'chat':
             if (role !== 'owner') return res.status(403).type('text/plain').send('Only the plan’s owner changes the household.');
             break;
         default:
@@ -382,6 +400,12 @@ ${role === 'owner' ? html`${link ? html`<div class="notice ok" role="status"><p>
             const secret = crypto.randomBytes(32).toString('base64url');
             await store.setShareHash(s, ownerOf(req), row.id, hashOf(secret));
             return planPage(req, res, { row: { ...row, share_hash: 'on' }, role }, { link: `${config.baseUrl}/plan/join/${secret}` });
+        }
+        if (req.params.action === 'chat') {
+            if (row.chat_room) return res.redirect(303, `/plan/p/${row.id}#chat`);
+            const out = await householdChat.openRoom(chatDeps(req), s, row, await store.listMembers(s, row.id));
+            if (!out.ok) return planPage(req, res, got, { problem: out.detail, status: 502 });
+            return res.redirect(303, `/plan/p/${row.id}#chat`);
         }
         if (req.params.action === 'unshare') await store.setShareHash(s, ownerOf(req), row.id, null);
         if (req.params.action === 'remove') { const m = str(body.member, 80); if (m) await store.removeMember(s, row.id, m); }
