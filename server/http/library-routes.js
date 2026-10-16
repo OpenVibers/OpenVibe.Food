@@ -4,6 +4,8 @@
  *
  *   GET  /recipes/library                 every recipe, newest first (24 a page)
  *   GET  /recipes/library/:slug           one recipe: ingredients from the food list, steps, what to buy and its cost
+ *   GET  /recipes/library.json?since=     the published recipes added since an ISO time, oldest first (up to 100): the
+ *                                         feed OpenVibe.Blog's budget-recipes desk reads; public, like the pages
  *   POST /recipes/library/:slug/review    staff: a person checked it (indexed, with Recipe JSON-LD) or takes it back
  *   POST /recipes/library/:slug/hide|show staff
  *
@@ -22,6 +24,23 @@ function mountLibrary(r, { ctx, page, config, signedIn, express }) {
     const lib = ctx.library;
     const isStaff = (req) => Boolean(signedIn(req) && req.viewer.role === 'admin');
     const meta = (x) => [x.serves ? `Serves ${x.serves}` : null, x.minutes ? `About ${x.minutes} min` : null, x.cost != null ? `${money(x.cost)} to buy${x.cost_partial ? '+' : ''}` : null].filter(Boolean).join(' · ');
+
+    r.get('/recipes/library.json', async (req, res) => {
+        const since = String(req.query.since || '');
+        if (since && Number.isNaN(Date.parse(since))) return res.status(400).json({ error: 'since must be an ISO 8601 time' });
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 100));
+        const recipes = await lib.since(since ? new Date(since).toISOString() : null, limit);
+        res.set('Cache-Control', 'public, max-age=300');
+        return res.json({
+            recipes: recipes.map((x) => ({
+                slug: x.slug, url: `${config.baseUrl}/recipes/library/${x.slug}`, title: x.title, theme: x.theme,
+                serves: x.serves, minutes: x.minutes, cost: x.cost, cost_partial: x.cost_partial,
+                ingredients: x.ingredients.map((i) => i.name).filter(Boolean),
+                reviewed: x.reviewed, created_at: x.created_at,
+            })),
+            note: AI_LINE,
+        });
+    });
 
     r.get('/recipes/library', async (req, res) => {
         const n = parseInt(req.query.page, 10);

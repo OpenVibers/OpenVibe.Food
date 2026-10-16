@@ -138,6 +138,12 @@ function createLibrary({ s, ai, log = console }) {
             const rows = await s.db.many('SELECT * FROM food_library_recipes WHERE status = ANY($1::text[]) ORDER BY created_at DESC, id LIMIT $2 OFFSET $3', [states, limit, offset]);
             return { total, recipes: rows.map(shape) };
         },
+        /** Published recipes added at or after `since` (ISO), oldest first: the public feed OpenVibe.Blog's recipe desk reads. */
+        async since(sinceIso, limit = 100) {
+            const rows = await s.db.many("SELECT * FROM food_library_recipes WHERE status = 'published' AND created_at >= $1 ORDER BY created_at ASC, id LIMIT $2",
+                [String(sinceIso || '1970-01-01T00:00:00.000Z'), Math.max(1, Math.min(200, limit))]);
+            return rows.map(shape);
+        },
         async reviewed() {
             return (await s.db.many("SELECT * FROM food_library_recipes WHERE status = 'published' AND reviewed_by IS NOT NULL ORDER BY created_at DESC")).map(shape);
         },

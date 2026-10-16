@@ -100,6 +100,21 @@ function aiStub() {
             assert.strictEqual((await t.get('/recipes/library/beans-and-rice-1')).status, 200);
             assert.ok((await t.get('/recipes')).text.includes('href="/recipes/library"'));
         });
+
+        await check('the JSON feed: published recipes since a time, oldest first; hidden ones never; a bad time is refused', async () => {
+            const all = await t.get('/recipes/library.json');
+            assert.strictEqual(all.status, 200);
+            const recipes = all.json().recipes;
+            assert.ok(recipes.length >= 1);
+            assert.ok(recipes.every((x) => x.url.endsWith(`/recipes/library/${x.slug}`) && Array.isArray(x.ingredients)));
+            const times = recipes.map((x) => x.created_at);
+            assert.deepStrictEqual(times, [...times].sort(), 'oldest first');
+            assert.strictEqual((await t.get('/recipes/library.json?since=2999-01-01T00:00:00Z')).json().recipes.length, 0);
+            assert.strictEqual((await t.get('/recipes/library.json?since=yesterday-ish')).status, 400);
+            const one = recipes[0].slug;
+            await t.get(`/recipes/library/${one}/hide`, { method: 'POST', as: boss, form: {}, headers: SAME });
+            assert.ok(!(await t.get('/recipes/library.json')).json().recipes.some((x) => x.slug === one), 'hidden recipes are not in the feed');
+        });
     } finally { await t.close(); }
     done();
 })();
