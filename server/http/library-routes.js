@@ -109,6 +109,8 @@ ${staff ? html`<form method="post" action="/recipes/library/${x.slug}/review" cl
         const x = await lib.bySlug(req.params.slug);
         if (!x) return res.status(404).type('text/plain').send('Not found.');
         await fn(x);
+        // A check, a take-back or a hide changes what OpenVibe.Search should hold (server/food/search-index.js).
+        if (ctx.recipeSearch) ctx.recipeSearch.kick();
         res.redirect(303, `/recipes/library/${x.slug}`);
     }
     r.post('/recipes/library/:slug/review', form, (req, res) => staffAction(req, res, (x) => lib.review(x, req.viewer.subject, req.body.yes !== '0')));

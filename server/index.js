@@ -43,7 +43,8 @@ async function start() {
     const subscriptions = require('./events-consumer').startSubscriptions({ config, port: config.port, secret: config.events.secrets[0] || '' });
     // The recipe library writes a theme every six hours (server/food/library.js); off without OpenVibe.AI.
     ctx.library.start();
-    const extra = [() => { if (subscriptions) subscriptions.stop(); }, () => ctx.library.stop()];
+    ctx.recipeSearch.start();
+    const extra = [() => { if (subscriptions) subscriptions.stop(); }, () => ctx.library.stop(), () => ctx.recipeSearch.stop()];
     createLifecycle({ server, ctx, extra });
     return { server, ctx };
 }

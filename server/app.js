@@ -88,6 +88,8 @@ async function createApp(opts = {}) {
     ctx.ai = opts.ai !== undefined ? opts.ai : createAiClient({ baseUrl: config.aiUrl, tokenClient: aiTokenClient, fetch: fetchImpl });
     // The recipe library (server/food/library.js): a theme every six hours where the process serves (server/index.js starts it).
     ctx.library = require('./food/library').createLibrary({ s, ai: ctx.ai, log });
+    // Checked recipes in OpenVibe.Search (server/food/search-index.js; off without FOOD_SEARCH_URL).
+    ctx.recipeSearch = require('./food/search-index').createRecipeSearchIndex({ config, library: ctx.library, log });
 
     const app = express();
     app.disable('x-powered-by');
