@@ -122,9 +122,9 @@ ${raw(showcase.features({
                     { icon: 'ov:location', title: 'Food near you', text: 'Food banks, soup kitchens, community fridges and free pantry boxes, plus budget grocers, with hours.', href: '/near' },
                     { icon: 'ov:page', title: 'A meal planner', text: 'Up to fourteen days for one person to a group, with the shopping list and its cost. Share it, and your household ticks it off together.', href: '/plan' },
                     { icon: 'ov:tools', title: 'A food list you can read', text: 'Nutrition per serving and per 100 g, the typical price, and the cheapest budget chain for each item.', href: '/foods' },
-                    { icon: 'ov:account', title: 'Your cupboard', text: 'List what you have and see what you can make now, and what one more item unlocks.', href: '/pantry' },
+                    { icon: 'ov:account', title: 'Your cupboard', text: 'Add what you have by barcode, photo or receipt; see what you can make now and what one more item unlocks.', href: '/pantry' },
                     { icon: 'ov:search', title: 'Delivery, compared', text: 'Search DoorDash, Uber Eats, Grubhub and more at once, and compare meal kits.', href: '/delivery' },
-                    { icon: 'ov:ai', title: 'Recipe ideas', text: 'Up to three recipes from your cupboard, with what to buy and its cost. Suggested by AI: check before you cook.', href: '/recipes' },
+                    { icon: 'ov:ai', title: 'Recipes on a budget', text: 'Cheap recipes costed from the food list, and ideas from your cupboard. Written by AI: check before you cook.', href: '/recipes' },
                 ],
             }))}
 ${raw(showcase.cta({
