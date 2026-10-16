@@ -733,7 +733,7 @@ ${row.recipes.length ? html`<div class="recipe-grid">${row.recipes.map(recipeBlo
 <form class="dv-form" method="get" action="/delivery" role="search"><label for="dv-q">A dish, a restaurant or groceries</label>
 <div class="dv-row"><input id="dv-q" name="q" type="search" maxlength="120" required placeholder="pad thai, Chipotle, eggs and milk" value="${q}"><button class="sc-btn sc-primary" type="submit">Search every app</button></div></form>
 ${links.length ? html`<ul class="dv-apps">${links.map((l) => html`<li class="dv-app"><a class="dv-open" href="${l.url}" target="_blank" rel="noopener nofollow"><span class="dv-name">${l.name}</span><span class="dv-host">${hostOf(l.url)} ↗</span></a><p class="dv-best muted small">${l.best}</p></li>`)}</ul>
-<p class="muted small">Compare the totals each app shows you, delivery and service fees included. For coupon codes on an app's own page, the <a href="https://github.com/OpenVibers/OpenVibe.Extensions/releases/latest">OpenVibe Companion</a> browser extension shows what OpenVibe.Coupons knows for it.</p>` : ''}
+<p class="muted small">Compare the totals each app shows you, delivery and service fees included. For coupon codes on an app's own page, the <a href="https://openvibe.coupons/companion">OpenVibe Companion</a> browser extension shows what OpenVibe.Coupons knows for it.</p>` : ''}
 <section aria-labelledby="h-kits"><h2 id="h-kits">Meal kits and prepared meals</h2>
 <p class="muted">Boxes of recipes and ingredients, or meals ready to heat. Prices change with the box size and the week, so each links to its own plans page; OpenVibe.Watch can tell you when a price changes.</p>
 <ul class="dv-kits">${delivery.KITS.map(kitRow)}</ul>
