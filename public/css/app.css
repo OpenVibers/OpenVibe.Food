@@ -49,7 +49,7 @@ button.sc-btn.sc-primary { border: 0; }
 .ov-form input, .ov-form select { font: inherit; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--border-light, #2c3d5c); background: var(--bg-secondary, #0f1729); color: inherit; }
 .ov-form input[type=search] { min-width: 240px; }
 .ov-form input[type=number] { width: 120px; }
-.places { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.places { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
 .place { border: 1px solid var(--border, #1f2d47); border-radius: 10px; padding: 10px 12px; background: var(--bg-card, #131c2e); }
 .attribution { border-top: 1px solid var(--border, #1f2d47); padding-top: 8px; margin-top: 16px; }
 .stats { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
