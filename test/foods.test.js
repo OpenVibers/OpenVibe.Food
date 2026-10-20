@@ -61,6 +61,8 @@ const foods = require('../server/food/foods');
             assert.match(r.text, /<link rel="canonical" href="[^"]*\/plan">/);
             const map = await t.get('/sitemap.xml');
             assert.match(map.text, /<loc>[^<]*\/plan<\/loc>/, 'and the sitemap lists it');
+            // So is "food near you" itself; a search's results are not.
+            assert.match((await t.get('/near')).text, /<meta name="robots" content="index, follow">/);
         });
 
         await check('the /foods page and one food page render server-side, per serving and per 100 g', async () => {
