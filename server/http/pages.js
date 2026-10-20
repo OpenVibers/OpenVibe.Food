@@ -234,8 +234,11 @@ ${plan.notes.map((n) => html`<p class="muted small">${n}</p>`)}`;
         let problem = null;
         try { plan = planMeals(spec); } catch (err) { problem = err && err.message ? err.message : 'That plan could not be made.'; }
         const savedId = str(req.query.saved, 40);
+        // A public tool page in search (it was noindex by default while the sitemap listed it); every ?people=&days=
+        // variant names /plan as canonical (layout.js drops the query).
         page(req, res, {
             title: 'Meal plan', description: 'A budget meal plan with a shopping list and an estimated cost, from the OpenVibe.Food food list.',
+            index: true, cache: signedIn(req) ? null : PUBLIC_CACHE,
             crumbs: [{ label: 'Meal plan' }], styles: [showcase.STYLESHEET],
             body: html`<h1>Plan meals</h1>
 <p class="lede">It buys one item from each of the six food groups first, cheapest per serving, then fills up with the best calories per dollar. Deterministic: the same numbers always give the same plan.</p>

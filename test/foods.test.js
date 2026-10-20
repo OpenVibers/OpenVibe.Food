@@ -54,6 +54,15 @@ const foods = require('../server/food/foods');
             assert.strictEqual(missing.json().code, 'food.food.not_found');
         });
 
+        await check('the meal planner is in search: indexable, every ?people=&days= variant canonical to /plan', async () => {
+            const r = await t.get('/plan?people=4&days=5');
+            assert.strictEqual(r.status, 200);
+            assert.match(r.text, /<meta name="robots" content="index, follow">/);
+            assert.match(r.text, /<link rel="canonical" href="[^"]*\/plan">/);
+            const map = await t.get('/sitemap.xml');
+            assert.match(map.text, /<loc>[^<]*\/plan<\/loc>/, 'and the sitemap lists it');
+        });
+
         await check('the /foods page and one food page render server-side, per serving and per 100 g', async () => {
             const list = await t.get('/foods');
             assert.strictEqual(list.status, 200);
