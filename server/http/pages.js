@@ -156,8 +156,10 @@ ${raw(showcase.cta({
             }
         }
         const title = out && out.location.name ? `Food near ${out.location.name.split(',').slice(0, 2).join(',')}` : 'Food near you';
+        // The page itself is in search (the sitemap lists it; it was noindex by default); a search's results are not.
         page(req, res, {
             title, description: 'Food banks, pantries and budget grocery stores near a place, from OpenStreetMap.',
+            index: !wantsSearch(req), cache: !wantsSearch(req) && !signedIn(req) ? PUBLIC_CACHE : null,
             crumbs: [{ label: 'Food near you' }], styles: [showcase.STYLESHEET],
             body: html`<h1>Food near you</h1>
 <p class="lede">Food banks, soup kitchens, community fridges, free pantry boxes and budget grocery stores, from OpenStreetMap.</p>
