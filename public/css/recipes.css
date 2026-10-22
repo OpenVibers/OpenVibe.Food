@@ -22,7 +22,7 @@
 .recipe-buy ul { list-style: none; padding: 0; margin: 0; }
 .recipe-buy li, .recipe-total { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
 .recipe-total { margin: 6px 0 2px; border-top: 1px solid var(--border-light, #2c3d5c); padding-top: 6px; }
-.recipe-buy-none { color: var(--success, #22c55e); }
+.recipe-buy-none { color: var(--success-text, var(--success, #22c55e)); }
 .recipe-notes { margin-top: 10px; color: var(--text-secondary, #96a7c2); }
 .lib-grid { list-style: none; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .lib-card h2 { margin: 0 0 6px; font-size: 1.1rem; }

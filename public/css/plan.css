@@ -21,4 +21,4 @@
 .share-link input { flex: 1 1 320px; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
 .plan-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 22px; }
 .plan-actions form { margin: 0; }
-.sc-btn.danger { border-color: var(--danger, #ef4444); color: var(--danger, #ef4444); }
+.sc-btn.danger { border-color: var(--danger, #ef4444); color: var(--danger-text, var(--danger, #ef4444)); }
