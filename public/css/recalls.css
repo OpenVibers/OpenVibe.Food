@@ -1,0 +1,16 @@
+/* OpenVibe.Food — food recalls (/recalls, /recalls/:number) and the home page's recall block. */
+.recalls { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 12px; }
+.recall { border: 1px solid var(--border, #1f2d47); border-radius: 14px; background: var(--bg-card, #131c2e); padding: 14px 16px; min-width: 0; }
+.recall p { margin: 4px 0; overflow-wrap: anywhere; }
+.recall-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 6px; }
+.recall-product { margin: 2px 0 6px; font-size: 1.05rem; line-height: 1.35; overflow-wrap: anywhere; }
+.recall-product a { color: var(--text-primary, #e6edf7); }
+.recall-title { overflow-wrap: anywhere; }
+.recall-classes { margin: 10px 0 14px; }
+.recall-classes ul { margin: 8px 0 0; padding-left: 1.1rem; }
+.recall-classes li { margin: 0 0 6px; }
+.recall-facts { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 8px 18px; margin: 8px 0 18px; }
+.recall-facts dt { color: var(--text-secondary, #96a7c2); }
+.recall-facts dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .recall-facts { grid-template-columns: 1fr; gap: 2px; } .recall-facts dd { margin-bottom: 8px; } }
+.recall-note { margin-top: 18px; }
