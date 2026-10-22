@@ -144,6 +144,12 @@ function createLibrary({ s, ai, log = console }) {
                 [String(sinceIso || '1970-01-01T00:00:00.000Z'), Math.max(1, Math.min(200, limit))]);
             return rows.map(shape);
         },
+        /** The published recipes that cost least per serving, every ingredient priced (none partial): the home's list. */
+        async cheapest(limit = 6) {
+            const rows = await s.db.many("SELECT * FROM food_library_recipes WHERE status = 'published' AND NOT cost_partial AND cost IS NOT NULL AND serves > 0 ORDER BY cost / serves ASC, created_at DESC, id LIMIT $1",
+                [Math.max(1, Math.min(24, limit))]);
+            return rows.map(shape);
+        },
         async reviewed() {
             return (await s.db.many("SELECT * FROM food_library_recipes WHERE status = 'published' AND reviewed_by IS NOT NULL ORDER BY created_at DESC")).map(shape);
         },

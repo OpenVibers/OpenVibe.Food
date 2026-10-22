@@ -115,6 +115,17 @@ function aiStub() {
             await t.get(`/recipes/library/${one}/hide`, { method: 'POST', as: boss, form: {}, headers: SAME });
             assert.ok(!(await t.get('/recipes/library.json')).json().recipes.some((x) => x.slug === one), 'hidden recipes are not in the feed');
         });
+
+        await check('the home lists the cheapest published recipes per serving, fully priced, each opening its page', async () => {
+            const cheap = await t.ctx.library.cheapest(8);
+            assert.ok(cheap.length >= 1 && cheap.every((x) => x.status === 'published' && !x.cost_partial && x.serves > 0));
+            const per = cheap.map((x) => x.cost / x.serves);
+            assert.deepStrictEqual(per, [...per].sort((a, b) => a - b), 'cheapest per serving first');
+            const home = await t.get('/');
+            assert.ok(home.text.includes('Cheap meals from the recipe library'));
+            assert.ok(home.text.includes(`href="/recipes/library/${cheap[0].slug}"`), 'the cheapest recipe opens its page');
+            assert.match(home.text, /<strong>\$\d+\.\d\d<\/strong> a serving/);
+        });
     } finally { await t.close(); }
     done();
 })();

@@ -34,6 +34,8 @@ const { suggestRecipes } = require('../food/recipes');
 const store = require('../food/store');
 const delivery = require('../food/delivery');
 const householdChat = require('../food/household-chat');
+const seo = require('openvibe-shared/seo');
+const { products } = require('openvibe-contracts');
 
 const SITE_NAME = 'OpenVibe.Food';
 const TAGLINE = 'What should we eat?';
@@ -97,11 +99,29 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
     }
 
     // ── Home ─────────────────────────────────────────────────
-    r.get('/', (req, res) => {
+    // What the home shows is read, never restated: the food list's own numbers (typical prices, nutrition), the recipe
+    // library's cheapest published recipes, the delivery apps and meal kits Food compares, and the product's questions.
+    // A block with nothing to show is left out.
+    const FAQ = ((products.get('openvibe.food') || {}).faq || []);
+    const proteinPerDollar = (f) => (f.price ? Math.round(f.package_protein_g / f.price) : null);
+    const byKcal = foods.FOODS.filter((f) => f.kcal_per_dollar).sort((a, b) => b.kcal_per_dollar - a.kcal_per_dollar).slice(0, 8);
+    const byProtein = foods.FOODS.filter((f) => proteinPerDollar(f)).sort((a, b) => proteinPerDollar(b) - proteinPerDollar(a)).slice(0, 8);
+    const shortName = (f) => f.name.replace(/\s*\([^)]*\)\s*$/, '');
+    const foodCard = (f, main, label) => html`<li><a href="/foods/${f.slug}"><b>${shortName(f)}</b><span class="hc-main"><strong>${main}</strong> ${label}</span><span class="hc-sub">${money(f.price)} at ${f.cheapest_store_name}, typical</span></a></li>`;
+    const NEAR_CITIES = ['New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX', 'Phoenix, AZ', 'Philadelphia, PA', 'San Antonio, TX', 'Seattle, WA'];
+    r.get('/', async (req, res) => {
+        let lib = { total: 0, cheap: [] };
+        if (ctx.library) {
+            try {
+                const [{ total }, cheap] = await Promise.all([ctx.library.list({ limit: 1 }), ctx.library.cheapest(8)]);
+                lib = { total, cheap };
+            } catch { lib = { total: 0, cheap: [] }; }
+        }
+        const base = String(config.baseUrl).replace(/\/+$/, '');
         const hero = showcase.hero({
             eyebrow: `${SITE_NAME} · ${TAGLINE}`,
             title: 'Eat well.', accent: 'Spend less.',
-            lede: 'Find food banks and budget grocers near you, plan meals with the shopping list and its cost, cook from what is in your cupboard, and compare every delivery app at once.',
+            lede: 'Find food banks and budget grocers near you, plan meals with the shopping list and its cost, cook from what is in your cupboard, and compare every delivery app and meal kit at once.',
             actions: [
                 { label: 'Find food near you', href: '/near', primary: true },
                 { label: 'Plan a week', href: '/plan' },
@@ -110,24 +130,62 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
             note: 'Open source (AGPL-3.0). Places come from OpenStreetMap © contributors (ODbL); prices are typical, not live.',
             aside: { html: String(searchForm({ panel: true })) },
         });
+        const stats = [
+            { value: foods.FOODS.length, label: 'foods with nutrition and typical prices', href: '/foods' },
+            { value: lib.total, label: 'budget recipes in the library', href: '/recipes/library' },
+            { value: Object.keys(foods.STORES).length, label: 'budget chains priced', href: '/foods' },
+            { value: delivery.APPS.length, label: 'delivery apps in one search', href: '/delivery' },
+            { value: delivery.KITS.length, label: 'meal kits side by side', href: '/delivery#kits' },
+        ].filter((x) => x.value);
         page(req, res, {
             index: true, cache: signedIn(req) ? null : PUBLIC_CACHE,
-            description: 'Find food banks and budget grocers near you, plan meals for a household with the shopping list and its cost, and cook from your cupboard.',
-            jsonLd: homeJsonLd(config),
-            styles: [showcase.STYLESHEET],
+            title: 'Food banks, cheap meals, every delivery app',
+            description: 'Find food banks and budget grocers, plan cheap meals with the shopping list and its cost, cook from your cupboard and compare delivery apps.',
+            jsonLd: [
+                ...homeJsonLd(config),
+                seo.jsonLd.itemList('The most food for a dollar on OpenVibe.Food', byKcal.map((f) => ({ name: `${shortName(f)}: ${f.kcal_per_dollar} calories for $1 (typical price)`, url: `${base}/foods/${f.slug}` })), { url: `${base}/foods` }),
+                FAQ.length ? seo.jsonLd.faq(FAQ.map((f) => ({ q: f.question, a: f.answer }))) : null,
+            ],
+            styles: [showcase.STYLESHEET], localStyles: ['css/home.css'],
             body: html`${raw(hero)}
+${stats.length ? html`<ul class="home-stats" aria-label="${SITE_NAME} in numbers">${stats.map((x) => html`<li><a href="${x.href}"><b>${x.value}</b><span>${x.label}</span></a></li>`)}</ul>` : ''}
+${lib.cheap.length ? html`<section class="sc-sec" aria-labelledby="h-meals"><h2 id="h-meals">Cheap meals from the recipe library</h2>
+<p class="sc-lede">The recipes that cost least per serving, with every ingredient priced from the food list. Written by OpenVibe.AI: check a recipe before you cook it. <a href="/recipes/library">All ${lib.total} recipes</a></p>
+<ul class="home-cards">${lib.cheap.map((x) => html`<li><a href="/recipes/library/${x.slug}"><b>${x.title}</b><span class="hc-main"><strong>${money(x.cost / x.serves)}</strong> a serving</span><span class="hc-sub">${[`${money(x.cost)} to buy`, `serves ${x.serves}`, x.minutes ? `about ${x.minutes} min` : null].filter(Boolean).join(' · ')}</span></a></li>`)}</ul></section>` : ''}
+<section class="sc-sec" aria-labelledby="h-value"><h2 id="h-value">The most food for a dollar</h2>
+<p class="sc-lede">Calories per dollar at the cheapest budget chain's typical price, from <a href="/foods">the food list</a>. Prices are a band to plan by, not a live price.</p>
+<ul class="home-cards">${byKcal.map((f) => foodCard(f, f.kcal_per_dollar.toLocaleString('en-US'), 'calories for $1'))}</ul></section>
+<section class="sc-sec" aria-labelledby="h-protein"><h2 id="h-protein">The cheapest protein</h2>
+<p class="sc-lede">Grams of protein a dollar buys, at the same typical prices.</p>
+<ul class="home-cards">${byProtein.map((f) => foodCard(f, `${proteinPerDollar(f)} g`, 'of protein for $1'))}</ul></section>
+<section class="sc-sec" aria-labelledby="h-groups"><h2 id="h-groups">Browse the food list</h2>
+<p class="sc-lede">Every food with its nutrition per serving and per 100 g, its typical price and the cheapest chain for it.</p>
+<ul class="home-cards three">${Object.entries(foods.GROUPS).map(([id, g]) => { const n = foods.FOODS.filter((f) => f.group === id).length; return n ? html`<li><a href="/foods?group=${id}"><b>${g.name}</b><span class="hc-main"><strong>${n}</strong> foods</span><span class="hc-sub">${g.examples}</span></a></li>` : ''; })}</ul></section>
+<section class="sc-sec" aria-labelledby="h-delivery"><h2 id="h-delivery">Every delivery app at once</h2>
+<p class="sc-lede">Type a dish, a restaurant or groceries and each app opens its own search for it, in your own account, where its prices and fees are.</p>
+<form class="home-search" method="get" action="/delivery" role="search"><label for="home-dv-q">A dish, a restaurant or groceries</label><span class="home-search-row"><input id="home-dv-q" name="q" type="search" maxlength="120" placeholder="pad thai, tacos, milk and eggs" required><button class="sc-btn sc-primary" type="submit">Search every app</button></span></form>
+<ul class="home-chips">${delivery.APPS.map((a) => html`<li title="${a.best}">${a.name}</li>`)}</ul></section>
+<section class="sc-sec" id="kits" aria-labelledby="h-kits"><h2 id="h-kits">Meal kits, side by side</h2>
+<p class="sc-lede">From the cheapest kits to fully cooked meals. Each opens its own plans page, where the current price per serving is.</p>
+<ul class="home-cards five">${delivery.KITS.map((k) => html`<li><a href="${k.plans}" rel="noopener nofollow" target="_blank"><b>${k.name} <span class="hc-tag">${delivery.TIER_TEXT[k.tier]}</span></b><span class="hc-sub">${k.what}</span><span class="hc-host">${k.host} ↗</span></a></li>`)}</ul></section>
+<section class="sc-sec" aria-labelledby="h-near"><h2 id="h-near">Find a food bank</h2>
+<p class="sc-lede">Food banks, soup kitchens, community fridges and free pantry boxes, with hours, from OpenStreetMap. Search any town or postcode, or start with a city.</p>
+<ul class="home-chips">${NEAR_CITIES.map((c) => html`<li><a href="/near?${new URLSearchParams({ q: c })}">${c.split(',')[0]}</a></li>`)}</ul>
+<p><a class="sc-btn sc-primary" href="/near">Search near you</a></p></section>
 ${raw(showcase.features({
                 title: 'Everything food',
-                lede: 'Six things, all working today: no card, no account needed to look around.',
+                lede: 'All working today: no card, no account needed to look around.',
                 items: [
-                    { icon: 'ov:location', title: 'Food near you', text: 'Food banks, soup kitchens, community fridges and free pantry boxes, plus budget grocers, with hours.', href: '/near' },
-                    { icon: 'ov:page', title: 'A meal planner', text: 'Up to fourteen days for one person to a group, with the shopping list and its cost. Share it, and your household ticks it off together.', href: '/plan' },
+                    { icon: 'ov:map', title: 'Food near you', text: 'Food banks, soup kitchens, community fridges and free pantry boxes, plus budget grocers, with hours.', href: '/near' },
+                    { icon: 'ov:docs', title: 'A meal planner', text: 'Up to fourteen days for one person to a group, with the shopping list and its cost. Share it, and your household ticks it off together.', href: '/plan' },
                     { icon: 'ov:tools', title: 'A food list you can read', text: 'Nutrition per serving and per 100 g, the typical price, and the cheapest budget chain for each item.', href: '/foods' },
                     { icon: 'ov:account', title: 'Your cupboard', text: 'Add what you have by barcode, photo or receipt; see what you can make now and what one more item unlocks.', href: '/pantry' },
                     { icon: 'ov:search', title: 'Delivery, compared', text: 'Search DoorDash, Uber Eats, Grubhub and more at once, and compare meal kits.', href: '/delivery' },
                     { icon: 'ov:ai', title: 'Recipes on a budget', text: 'Cheap recipes costed from the food list, and ideas from your cupboard. Written by AI: check before you cook.', href: '/recipes' },
                 ],
             }))}
+${FAQ.length ? html`<section class="sc-sec" aria-labelledby="h-faq"><h2 id="h-faq">Questions people ask</h2>
+<div class="home-faq">${FAQ.map((f) => html`<details><summary>${f.question}</summary><p>${f.answer}</p></details>`)}</div></section>` : ''}
 ${raw(showcase.cta({
                 title: 'Start where you are',
                 text: 'Search your town for a food bank, plan the next three days for what you can spend, or look up what is in the tin before you open it.',
@@ -526,7 +584,7 @@ ${f.tags.length ? html`<p class="tags">${f.tags.map((t) => badge(t))}</p>` : ''}
     async function pantryPage(req, res, { saved = false, added = null, addedCount = 0 } = {}) {
         if (!signedIn(req)) {
             return page(req, res, {
-                title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET],
+                description: 'Keep what is in your cupboard, added by barcode, photo or receipt, and see which budget recipes you can make with it now.', title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET],
                 body: html`<h1>Your cupboard</h1>
 <p class="lede">Keep a list of what you already have and OpenVibe.Food will say which of its simple recipes you can make right now — and what one more item would unlock.</p>
 <p><a class="sc-btn sc-primary" href="/auth/login?next=%2Fpantry">Sign in to keep a cupboard</a></p>`,
@@ -540,7 +598,7 @@ ${foods.FOODS.filter((f) => f.group === id).map((f) => html`<label class="pantry
 </fieldset>`);
         const recipeLine = (x) => html`<li><b>${x.name}</b> — serves ${x.serves}, about ${x.minutes} minutes${x.missing && x.missing.length ? html` · missing ${x.missing.join(', ')}` : ''}</li>`;
         page(req, res, {
-            title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET], localStyles: ['css/pantry.css'], scripts: ['js/barcode-scan.js', 'js/pantry-photo.js'],
+            description: 'Keep what is in your cupboard, added by barcode, photo or receipt, and see which budget recipes you can make with it now.', title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET], localStyles: ['css/pantry.css'], scripts: ['js/barcode-scan.js', 'js/pantry-photo.js'],
             body: html`<h1>Your cupboard</h1>
 <p class="lede">Tick what you have. Nothing leaves your account; the matching is done here, not by a model.</p>
 ${saved ? notice('Cupboard saved.', 'ok') : ''}
@@ -707,7 +765,7 @@ ${r.notes ? html`<div class="recipe-notes small">${raw(markdown(r.notes))}</div>
     async function recipesPage(req, res, { saved = false, error = null } = {}) {
         if (!signedIn(req)) {
             return page(req, res, {
-                title: 'Recipe ideas', crumbs: [{ label: 'Recipe ideas' }], styles: [showcase.STYLESHEET], localStyles: ['css/recipes.css'],
+                description: 'Budget recipe ideas from what is in your cupboard, costed from the food list, plus a library of cheap recipes. Written by AI.', title: 'Recipe ideas', crumbs: [{ label: 'Recipe ideas' }], styles: [showcase.STYLESHEET], localStyles: ['css/recipes.css'],
                 body: html`<h1>Recipe ideas</h1>
 <p class="lede">Tell OpenVibe.Food what you feel like and how many people you are feeding. It suggests up to three recipes from the food list, marks what is already in your cupboard and lists what you would still need to buy, with a typical cost.</p>
 <p><a class="sc-btn sc-primary" href="/auth/login?next=%2Frecipes">Sign in to get recipe ideas</a> <a class="sc-btn" href="/recipes/library">Browse the recipe library</a></p>`,
@@ -721,7 +779,7 @@ ${r.notes ? html`<div class="recipe-notes small">${raw(markdown(r.notes))}</div>
             'food.recipes_daily_limit': 'You have reached today\'s recipe idea limit. Come back tomorrow.',
         };
         page(req, res, {
-            title: 'Recipe ideas', crumbs: [{ label: 'Recipe ideas' }], styles: [showcase.STYLESHEET], localStyles: ['css/recipes.css'],
+            description: 'Budget recipe ideas from what is in your cupboard, costed from the food list, plus a library of cheap recipes. Written by AI.', title: 'Recipe ideas', crumbs: [{ label: 'Recipe ideas' }], styles: [showcase.STYLESHEET], localStyles: ['css/recipes.css'],
             body: html`<h1>Recipe ideas</h1>
 <p class="lede">What do you feel like, and for how many people? OpenVibe.AI suggests up to three recipes from the food list, and OpenVibe.Food works out what you would still need to buy from its own typical prices.</p>
 ${saved ? notice('Recipe ideas saved below.', 'ok') : ''}
