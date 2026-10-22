@@ -14,16 +14,19 @@ const { measure, check, format } = require('openvibe-shared/perf-budget');
 // Budgets are set from the numbers measured on 2026-10-08 (the real ones, fresh database), rounded up with about 10%
 // headroom; file counts are the measured counts and external files stay at 0.
 const BUDGETS = {
-    htmlRawKB: 29,   // measured 28.7 with plan together as the sixth feature (2026-10-15); 27.6 with Shared 4.1.0's manifest + apple-touch-icon links (24.9 before; the home page: hero, features, steps, cta, JSON-LD)
-    htmlBrotliKB: 7.3,   // 7.0 (6.2 before 4.1.0)
+    // Raised 2026-10-22 for the curated home (the owner's "rich content on the home page"): the most food for a dollar,
+    // the cheapest protein, the food groups, every delivery app with a search, the meal kits, food banks by city, the
+    // questions, ItemList + FAQPage JSON-LD, and css/home.css. Measured 43.3/9.8 KB HTML (empty library) and 22.2/5.3 KB CSS.
+    htmlRawKB: 48,   // 43.3 on 2026-10-22; measured 28.7 with plan together as the sixth feature (2026-10-15); 27.6 with Shared 4.1.0's manifest + apple-touch-icon links (24.9 before; the home page: hero, features, steps, cta, JSON-LD)
+    htmlBrotliKB: 11,   // 9.8 on 2026-10-22; 7.0 (6.2 before 4.1.0)
     jsFiles: 5,   // 5 (theme-loader, web-runtime, navbar, footer, boost: openvibe-shared/shell)
     jsRawKB: 264,   // 239.8
     jsBrotliKB: 62.5,   // 56.5
-    cssFiles: 2,   // 2 (app.css + the cached /shared/showcase.css)
+    cssFiles: 3,   // 3 (app.css, the cached /shared/showcase.css and css/home.css)
     // 16.4 since the product's own pages brought their stylesheet with them (the search and plan forms, the place
     // cards, the pantry's tick list); app.css itself stayed within a few lines.
-    cssRawKB: 18.0,   // 16.4
-    cssBrotliKB: 4.6,     // 4.3 with the hero search panel
+    cssRawKB: 24.5,   // 22.2 with css/home.css; 16.4 before
+    cssBrotliKB: 5.9,     // 5.3 with css/home.css; 4.3 with the hero search panel
     externalFiles: 0,   // 0
 };
 

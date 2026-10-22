@@ -104,6 +104,10 @@ const foods = require('../server/food/foods');
             assert.ok(r.text.includes('action="/near"'), 'the search form posts to /near');
             assert.ok(r.text.includes('name="q"'));
             for (const href of ['/near', '/plan', '/foods', '/pantry']) assert.ok(r.text.includes(`href="${href}"`), `no link to ${href}`);
+            for (const h of ['The most food for a dollar', 'The cheapest protein', 'Browse the food list', 'Every delivery app at once', 'Meal kits, side by side', 'Find a food bank', 'Questions people ask']) assert.ok(r.text.includes(h), `the home has "${h}"`);
+            assert.match(r.text, /<a href="\/foods\/[a-z0-9-]+"><b>[^<]+<\/b><span class="hc-main"><strong>[\d,]+<\/strong> calories for \$1<\/span>/, 'a food card says what a dollar buys and opens the food');
+            assert.ok(r.text.includes('href="/foods?group=protein"'), 'each food group opens the list at it');
+            assert.ok(!r.text.includes('Cheap meals from the recipe library'), 'no recipe block while the library is empty');
         });
     } finally { await t.close(); }
     done();
