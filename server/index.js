@@ -44,7 +44,9 @@ async function start() {
     // The recipe library writes a theme every six hours (server/food/library.js); off without OpenVibe.AI.
     ctx.library.start();
     ctx.recipeSearch.start();
-    const extra = [() => { if (subscriptions) subscriptions.stop(); }, () => ctx.library.stop(), () => ctx.recipeSearch.stop()];
+    // Food recalls follow OpenVibe.Sources' change feed hourly (server/food/recalls.js).
+    ctx.recalls.start();
+    const extra = [() => { if (subscriptions) subscriptions.stop(); }, () => ctx.library.stop(), () => ctx.recipeSearch.stop(), () => ctx.recalls.stop()];
     createLifecycle({ server, ctx, extra });
     return { server, ctx };
 }

@@ -90,6 +90,8 @@ async function createApp(opts = {}) {
     ctx.library = require('./food/library').createLibrary({ s, ai: ctx.ai, log });
     // Checked recipes in OpenVibe.Search (server/food/search-index.js; off without FOOD_SEARCH_URL).
     ctx.recipeSearch = require('./food/search-index').createRecipeSearchIndex({ config, library: ctx.library, log });
+    // Food recalls from OpenVibe.Sources (server/food/recalls.js); a test passes a stand-in source through opts.recallSource.
+    ctx.recalls = require('./food/recalls').createRecalls({ config, s, fetchImpl, log, source: opts.recallSource || null });
 
     const app = express();
     app.disable('x-powered-by');

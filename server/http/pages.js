@@ -9,6 +9,7 @@
  *   /foods            the food list, grouped
  *   /foods/:slug      one food: nutrition per serving and per 100 g, typical prices
  *   /pantry           what is in your cupboard, and what you can make from it (signed in)
+ *   /recalls          the FDA's food recall reports, through OpenVibe.Sources (http/recall-pages.js)
  *   /updates          the update log
  *
  * Crawl artifacts (robots.txt, sitemap.xml, llms.txt, llms-full.txt, JSON-LD) are http/discovery.js.
@@ -34,6 +35,7 @@ const { suggestRecipes } = require('../food/recipes');
 const store = require('../food/store');
 const delivery = require('../food/delivery');
 const householdChat = require('../food/household-chat');
+const { date: recallDate } = require('./recall-pages');
 const seo = require('openvibe-shared/seo');
 const { products } = require('openvibe-contracts');
 
@@ -117,6 +119,9 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
                 lib = { total, cheap };
             } catch { lib = { total: 0, cheap: [] }; }
         }
+        // The newest FDA recall reports (server/food/recalls.js); none yet or a failed read leaves the block out.
+        let recalls = { total: 0, latest: [] };
+        try { const [total, latest] = await Promise.all([ctx.recalls.count(), ctx.recalls.list({ limit: 4 })]); recalls = { total, latest }; } catch { /* left out */ }
         const base = String(config.baseUrl).replace(/\/+$/, '');
         const hero = showcase.hero({
             eyebrow: `${SITE_NAME} · ${TAGLINE}`,
@@ -136,6 +141,7 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
             { value: Object.keys(foods.STORES).length, label: 'budget chains priced', href: '/foods' },
             { value: delivery.APPS.length, label: 'delivery apps in one search', href: '/delivery' },
             { value: delivery.KITS.length, label: 'meal kits side by side', href: '/delivery#kits' },
+            { value: recalls.total, label: 'FDA food recalls, newest first', href: '/recalls' },
         ].filter((x) => x.value);
         page(req, res, {
             index: true, cache: signedIn(req) ? null : PUBLIC_CACHE,
@@ -172,6 +178,9 @@ ${lib.cheap.length ? html`<section class="sc-sec" aria-labelledby="h-meals"><h2 
 <p class="sc-lede">Food banks, soup kitchens, community fridges and free pantry boxes, with hours, from OpenStreetMap. Search any town or postcode, or start with a city.</p>
 <ul class="home-chips">${NEAR_CITIES.map((c) => html`<li><a href="/near?${new URLSearchParams({ q: c })}">${c.split(',')[0]}</a></li>`)}</ul>
 <p><a class="sc-btn sc-primary" href="/near">Search near you</a></p></section>
+${recalls.latest.length ? html`<section class="sc-sec" aria-labelledby="h-recalls"><h2 id="h-recalls">Food recalls</h2>
+<p class="sc-lede">The newest of the FDA's food recall reports: what was recalled, by whom and how serious it is. <a href="/recalls">All ${recalls.total} recalls</a></p>
+<ul class="home-cards">${recalls.latest.map((x) => html`<li><a href="/recalls/${x.recall_number}"><b>${x.product.length > 90 ? `${x.product.slice(0, 89).replace(/\s+\S*$/, '')}…` : x.product}</b><span class="hc-main"><strong>${x.classification || 'Recall'}</strong> ${x.firm || ''}</span><span class="hc-sub">${[x.reported_on ? `Reported ${recallDate(x.reported_on)}` : null, x.state].filter(Boolean).join(' · ')}</span></a></li>`)}</ul></section>` : ''}
 ${raw(showcase.features({
                 title: 'Everything food',
                 lede: 'All working today: no card, no account needed to look around.',
@@ -875,6 +884,8 @@ ${links.length ? html`<ul class="dv-apps">${links.map((l) => html`<li class="dv-
     r.use(createDiscoveryRoutes(ctx));
     // The recipe library (server/food/library.js, http/library-routes.js).
     require('./library-routes').mountLibrary(r, { ctx, page, config, signedIn, express });
+    // Food recalls (server/food/recalls.js, http/recall-pages.js).
+    require('./recall-pages').mountRecalls(r, { ctx, page, config, signedIn, publicCache: PUBLIC_CACHE });
     return r;
 }
 

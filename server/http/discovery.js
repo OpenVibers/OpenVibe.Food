@@ -24,6 +24,7 @@ const PAGE_TEXT = {
     '/near': ['Food near you', 'Food banks, soup kitchens, community fridges and budget grocery stores near a place, from OpenStreetMap.'],
     '/plan': ['Meal plan', 'Plan meals for one person, a couple or a group for up to fourteen days, with a shopping list and an estimated cost.'],
     '/foods': ['The food list', 'Every food OpenVibe.Food plans with: nutrition per serving and per 100 g, and a typical price band.'],
+    '/recalls': ['Food recalls', 'The FDA\'s food recall reports, newest first: what was recalled, by whom, why, where it was sold and how serious it is (openFDA, public domain).'],
     '/updates': ['What shipped on OpenVibe.Food', 'This site\'s update log, from the network changelog feed.'],
 };
 const SUMMARIES = {
@@ -31,6 +32,7 @@ const SUMMARIES = {
     '/near': 'Food banks and budget grocery stores near a place, from OpenStreetMap.',
     '/plan': 'A meal plan with a shopping list and an estimated cost.',
     '/foods': 'Nutrition per serving and per 100 g, and a typical price band, for every food.',
+    '/recalls': 'The FDA\'s food recall reports, newest first.',
     '/updates': 'What shipped on the site.',
 };
 
@@ -57,6 +59,7 @@ const publicPages = () => [
     { path: '/near', changefreq: 'weekly', priority: 0.9 },
     { path: '/plan', changefreq: 'weekly', priority: 0.9 },
     { path: '/foods', changefreq: 'weekly', priority: 0.8 },
+    { path: '/recalls', changefreq: 'daily', priority: 0.8 },
     { path: '/updates', changefreq: 'daily', priority: 0.5 },
     ...foods.FOODS.map((f) => ({
         path: `/foods/${f.slug}`, changefreq: 'monthly', priority: 0.5,
@@ -88,6 +91,7 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'Food near you', url: abs('/near'), note: 'food banks and budget grocery stores, from OpenStreetMap' },
                     { title: 'Meal plan', url: abs('/plan'), note: 'a shopping list and an estimated cost' },
                     { title: 'The food list', url: abs('/foods'), note: 'nutrition and typical prices' },
+                    { title: 'Food recalls', url: abs('/recalls'), note: 'the FDA\'s food recall reports through OpenVibe.Sources, newest first, by product, company, class and state' },
                     { title: 'Recipe library', url: abs('/recipes/library'), note: 'budget recipes written by OpenVibe.AI from the food list, each with what to buy and its typical cost; a recipe a person checked is marked so' },
                     { title: 'What shipped on OpenVibe.Food', url: abs('/updates') },
                 ] },
