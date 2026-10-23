@@ -149,7 +149,7 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
             description: 'Find food banks and budget grocers, plan cheap meals with the shopping list and its cost, cook from your cupboard and compare delivery apps.',
             jsonLd: [
                 ...homeJsonLd(config),
-                seo.jsonLd.itemList('The most food for a dollar on OpenVibe.Food', byKcal.map((f) => ({ name: `${shortName(f)}: ${f.kcal_per_dollar} calories for $1 (typical price)`, url: `${base}/foods/${f.slug}` })), { url: `${base}/foods` }),
+                seo.jsonLd.itemList('The most food for a dollar on OpenVibe.Food', byKcal.map((f) => ({ name: shortName(f), url: `${base}/foods/${f.slug}` })), { url: `${base}/foods` }),
                 FAQ.length ? seo.jsonLd.faq(FAQ.map((f) => ({ q: f.question, a: f.answer }))) : null,
             ],
             styles: [showcase.STYLESHEET], localStyles: ['css/home.css'],
