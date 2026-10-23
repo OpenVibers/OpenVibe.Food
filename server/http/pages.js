@@ -28,6 +28,7 @@ const { html, raw, table, notice, time, badge } = require('../render/html');
 const { markdown } = require('../render/markdown');
 const { send } = require('../render/layout');
 const foods = require('../food/foods');
+const { NOTE: OFFICIAL_NOTE } = require('../food/official-prices');
 const { planMeals } = require('../food/planner');
 const { searchPlaces, safeUrl, ATTRIBUTION } = require('../food/places');
 const { matchPantry } = require('../food/pantry-match');
@@ -561,6 +562,7 @@ ${list.length ? sections : notice('Nothing matched. Try a shorter word.', 'warn'
 
     r.get('/foods/:slug', (req, res) => {
         const f = foods.getFood(req.params.slug);
+        const official = f && ctx.officialPrices ? ctx.officialPrices.forFood(f.slug) : null;
         if (!f) return page(req, res, {
             title: 'No such food', crumbs: [{ label: 'Food list', href: '/foods' }, { label: 'Not found' }],
             body: html`<h1>No such food</h1><p>Nothing in the list is called “${String(req.params.slug).slice(0, 64)}”. <a href="/foods">See the whole list</a>.</p>`,
@@ -584,6 +586,9 @@ ${table(['', 'A serving', f.per_100g ? 'Per 100 g' : 'Per 100 g'], [
 <p>${f.price == null ? 'No price recorded.' : html`<b>${money(f.price)}</b> to ${money(f.price_max)} a pack · ${f.band_label} · ${money(f.cost_per_serving)} a serving`}</p>
 ${table(['Store', 'A pack'], f.prices.map((p) => [p.store_name, money(p.price)]))}
 <p class="muted small">Typical 2025 US (Washington) prices carried over from the OpenVibe.Tools grocery dataset; not a live price.</p>
+${official ? html`<h2>US average price</h2>
+<p><b>${money(official.pack_price)}</b> for this pack at the US city average for ${official.month}: ${money(official.value)} per ${official.unit} of ${official.item.toLowerCase()} (<a href="${official.url}" rel="noopener">BLS series ${official.series_id}</a>).</p>
+<p class="muted small">${OFFICIAL_NOTE}</p>` : ''}
 ${f.tags.length ? html`<p class="tags">${f.tags.map((t) => badge(t))}</p>` : ''}
 <p><a href="/plan?people=2&days=3">Plan meals with this</a> · <a href="/foods">Back to the list</a></p>`,
         });
