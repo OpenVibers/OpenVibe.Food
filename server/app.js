@@ -92,6 +92,8 @@ async function createApp(opts = {}) {
     ctx.recipeSearch = require('./food/search-index').createRecipeSearchIndex({ config, library: ctx.library, log });
     // Food recalls from OpenVibe.Sources (server/food/recalls.js); a test passes a stand-in source through opts.recallSource.
     ctx.recalls = require('./food/recalls').createRecalls({ config, s, fetchImpl, log, source: opts.recallSource || null });
+    // BLS's US average prices for list items, from OpenVibe.Sources (server/food/official-prices.js); a test passes opts.priceSource.
+    ctx.officialPrices = require('./food/official-prices').createOfficialPrices({ config, s, fetchImpl, log, source: opts.priceSource || null });
 
     const app = express();
     app.disable('x-powered-by');

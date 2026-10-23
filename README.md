@@ -154,6 +154,14 @@ contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/). Read f
 prices for five budget chains and the USDA MyPlate groups. They are a band to plan by, **never a live price**. The
 Walmart page scraping that source also did is deliberately not ported: this service never scrapes a retail site.
 
+**Official prices** — for the 13 items the U.S. Bureau of Labor Statistics prices (eggs, boneless chicken breast,
+ground beef, white bread, rice, spaghetti, dried beans, bananas, oranges, strawberries, potatoes, whole milk, cheddar),
+an item's page also shows BLS's US city average for the newest month and that figure worked out for the item's pack
+([server/food/official-prices.js](server/food/official-prices.js)). Food never calls BLS: OpenVibe.Sources reads BLS's
+published average-price file once a day (source `bls-average-prices`) and Food follows its change feed into
+`food_official_prices`. BLS is cited with its note that it cannot vouch for data once they leave BLS.gov. The list's
+own band stays as it is.
+
 **Nutrition** — the same source's typical values per serving. "Per 100 g" is arithmetic on the pack size stated in an
 item's own name divided by its servings (for example a 15 oz can with 3.5 servings is 121 g a serving). Where a name
 states no weight — a dozen eggs, a 12-pack of ramen — no per-100 g figure is given rather than a density guessed.
