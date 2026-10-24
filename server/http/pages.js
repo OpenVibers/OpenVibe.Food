@@ -587,7 +587,7 @@ ${table(['', 'A serving', f.per_100g ? 'Per 100 g' : 'Per 100 g'], [
 ${table(['Store', 'A pack'], f.prices.map((p) => [p.store_name, money(p.price)]))}
 <p class="muted small">Typical 2025 US (Washington) prices carried over from the OpenVibe.Tools grocery dataset; not a live price.</p>
 ${official ? html`<h2>US average price</h2>
-<p><b>${money(official.pack_price)}</b> for this pack at the US city average for ${official.month}: ${money(official.value)} per ${official.unit} of ${official.item.toLowerCase()} (<a href="${official.url}" rel="noopener">BLS series ${official.series_id}</a>).</p>
+<p><b>${money(official.pack_price)}</b> for this pack at the US city average for ${official.month}: ${money(official.value)} per ${official.unit} of ${official.item.charAt(0).toLowerCase() + official.item.slice(1)} (<a href="${official.url}" rel="noopener">BLS series ${official.series_id}</a>).</p>
 <p class="muted small">${OFFICIAL_NOTE}</p>` : ''}
 ${f.tags.length ? html`<p class="tags">${f.tags.map((t) => badge(t))}</p>` : ''}
 <p><a href="/plan?people=2&days=3">Plan meals with this</a> · <a href="/foods">Back to the list</a></p>`,

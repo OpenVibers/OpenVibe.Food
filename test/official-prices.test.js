@@ -77,6 +77,8 @@ function feed(items) {
             const bread = await t.get('/foods/bread-white');
             assert.strictEqual(bread.status, 200);
             assert.ok(bread.text.includes('US average price'));
+            assert.ok(bread.text.includes('per lb of bread, white, pan'), 'the item name reads in the sentence');
+            assert.ok((await t.get('/foods/eggs-dozen')).text.includes('per dozen of eggs, grade A, large'), 'only the first letter is lowered (grade A, not grade a)');
             assert.ok(bread.text.includes('$2.29</b> for this pack at the US city average for September 2026: $1.83 per lb'), bread.text.slice(bread.text.indexOf('US average'), bread.text.indexOf('US average') + 300));
             assert.ok(bread.text.includes('https://data.bls.gov/timeseries/APU0000702111'));
             assert.ok(bread.text.includes('BLS.gov cannot vouch for the data'));
