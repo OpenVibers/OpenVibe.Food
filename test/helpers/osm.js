@@ -40,6 +40,8 @@ async function startOsm(opts = {}) {
         geocode: opts.geocode || [SPRINGFIELD],
         overpass: opts.overpass || DEFAULT_OVER,
         fail: false,
+        overpassFail: false,                // Overpass alone answers 503 (Nominatim still works)
+        overpassDelayMs: 0,                 // Overpass waits this long before answering (a slow public server)
         respond: null,                      // (kind, query) → body, to override per call
     };
 
@@ -58,6 +60,8 @@ async function startOsm(opts = {}) {
                 return json(200, state.geocode.filter((g) => words.some((w) => String(g.display_name).toLowerCase().includes(w))));
             }
             if (url.pathname === '/api/interpreter' && req.method === 'POST') {
+                if (state.overpassFail) return json(503, { error: 'the stand-in Overpass is busy' });
+                if (state.overpassDelayMs) { const ms = state.overpassDelayMs; state.overpassDelayMs = 0; setTimeout(() => { if (!res.writableEnded) json(200, { elements: [] }); }, ms); return; }
                 const data = decodeURIComponent(new URLSearchParams(raw).get('data') || '');
                 const kind = /social_facility|food_sharing|give_box/.test(data) ? 'foodbank' : 'grocery';
                 if (state.respond) return json(200, state.respond(kind, data));
@@ -70,8 +74,9 @@ async function startOsm(opts = {}) {
     const url = `http://127.0.0.1:${server.address().port}`;
     return {
         url, state, requests,
-        env: { FOOD_NOMINATIM_URL: url, FOOD_OVERPASS_URL: `${url}/api/interpreter` },
-        reset() { requests.length = 0; state.fail = false; state.respond = null; state.geocode = [SPRINGFIELD]; state.overpass = DEFAULT_OVER; },
+        // No fallback servers: a test never reaches the real Overpass (places.test.js sets its own stand-in list).
+        env: { FOOD_NOMINATIM_URL: url, FOOD_OVERPASS_URL: `${url}/api/interpreter`, FOOD_OVERPASS_FALLBACK_URLS: '' },
+        reset() { requests.length = 0; state.fail = false; state.overpassFail = false; state.overpassDelayMs = 0; state.respond = null; state.geocode = [SPRINGFIELD]; state.overpass = DEFAULT_OVER; },
         /** The gaps, in ms, between consecutive upstream calls — the pace a test checks. */
         gaps() { return requests.slice(1).map((r, i) => r.at - requests[i].at); },
         close: () => new Promise((r) => server.close(r)),

@@ -53,13 +53,13 @@ function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => D
     };
 
     /** Fetch a URL built from `base` (never from caller input), with the OSM User-Agent and a hard timeout. */
-    async function fetchJson(url, init = {}) {
+    async function fetchJson(url, init = {}, { timeoutMs = osm.timeoutMs } = {}) {
         let res;
         try {
             res = await fetchImpl(url.toString(), {
                 ...init,
                 headers: { 'User-Agent': osm.userAgent, Accept: 'application/json', ...(init.headers || {}) },
-                signal: AbortSignal.timeout(osm.timeoutMs),
+                signal: AbortSignal.timeout(timeoutMs),
             });
         } catch (err) {
             throw new UpstreamError('food.place.upstream', `the place service could not be reached (${err && err.name === 'TimeoutError' ? 'timed out' : 'network error'})`);
@@ -71,7 +71,13 @@ function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => D
     async function cached(key, fn) {
         const hit = await geo.cacheGet(s, key);
         if (hit) return { body: hit.body, cached: true, fetched_at: hit.fetched_at };
-        const body = await fn();
+        let body;
+        try { body = await fn(); } catch (err) {
+            // OSM not answering: the last answer for the same question, however old (kept 30 days past its TTL).
+            const old = await geo.cacheGet(s, key, { stale: true });
+            if (old) return { body: old.body, cached: true, stale: true, fetched_at: old.fetched_at };
+            throw err;
+        }
         const written = await geo.cachePut(s, key, body, osm.cacheTtlMs);
         return { body, cached: false, fetched_at: written.fetched_at };
     }
@@ -86,14 +92,34 @@ function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => D
         return cached(`nominatim:${keyOf(query)}:${limit}`, () => pacerFor(osm.nominatimUrl).run(() => fetchJson(url)));
     }
 
-    /** One bounded Overpass query → its elements. Cached by the query text, so the same area is asked once. */
+    /**
+     * One bounded Overpass query → its elements. Cached by the query text, so the same area is asked once. The servers
+     * in osm.overpassUrls are tried in order, each for osm.overpassTryMs (the last one for what is left of timeoutMs),
+     * so one overloaded server no longer holds the page for the whole budget.
+     */
     function overpass(query) {
         const body = `data=${encodeURIComponent(query)}`;
-        return cached(`overpass:${crypto.createHash('sha256').update(query).digest('hex')}`, () => pacerFor(osm.overpassUrl).run(() => fetchJson(new URL(osm.overpassUrl), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body,
-        })));
+        const urls = osm.overpassUrls && osm.overpassUrls.length ? osm.overpassUrls : [osm.overpassUrl];
+        return cached(`overpass:${crypto.createHash('sha256').update(query).digest('hex')}`, async () => {
+            const started = now();
+            let tried = 0;
+            for (const [i, base] of urls.entries()) {
+                const left = osm.timeoutMs - (now() - started);
+                if (left < 1000) break;
+                const timeoutMs = i === urls.length - 1 ? left : Math.min(left, osm.overpassTryMs);
+                tried++;
+                try {
+                    return await pacerFor(base).run(() => fetchJson(new URL(base), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body,
+                    }, { timeoutMs }));
+                } catch (err) {
+                    log.warn && log.warn(`[OpenVibe.Food] Overpass ${new URL(base).host}: ${err.message}`);
+                }
+            }
+            throw new UpstreamError('food.place.upstream', `OpenStreetMap's place servers are busy right now (${tried} tried). Try again in a few minutes.`);
+        });
     }
 
     return { geocode, overpass, fetchJson, UpstreamError };

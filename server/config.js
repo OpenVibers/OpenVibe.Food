@@ -50,6 +50,12 @@ function load(env = process.env) {
         osm: {
             nominatimUrl: trim(env.FOOD_NOMINATIM_URL || 'https://nominatim.openstreetmap.org'),
             overpassUrl: trim(env.FOOD_OVERPASS_URL || 'https://overpass-api.de/api/interpreter'),
+            // Public Overpass servers tried in order, each with overpassTryMs of the timeoutMs budget: one is often
+            // overloaded (2026-10-24: overpass-api.de took 26 s and returned nothing, so every near search took 25 s).
+            overpassUrls: [...new Set([trim(env.FOOD_OVERPASS_URL || 'https://overpass-api.de/api/interpreter'),
+                ...String(env.FOOD_OVERPASS_FALLBACK_URLS ?? 'https://overpass.kumi.systems/api/interpreter,https://overpass.private.coffee/api/interpreter')
+                    .split(',').map((u) => trim(u)).filter(Boolean)])],
+            overpassTryMs: Math.max(1000, int(env.FOOD_OVERPASS_TRY_MS, 8_000)),
             // Identify to OSM with a contact URL, as both policies require; never a browser User-Agent.
             userAgent: env.FOOD_OSM_USER_AGENT || `OpenVibeFood/0.1 (+${baseUrl})`,
             minIntervalMs: Math.max(0, int(env.FOOD_OSM_MIN_INTERVAL_MS, 1000)),

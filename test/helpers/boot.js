@@ -8,6 +8,8 @@ process.env.FOOD_API_RATE_LIMIT_PER_MIN = process.env.FOOD_API_RATE_LIMIT_PER_MI
 const OSM_OFFLINE = {
     FOOD_NOMINATIM_URL: 'http://127.0.0.1:9/nominatim',
     FOOD_OVERPASS_URL: 'http://127.0.0.1:9/overpass',
+    // No public fallback servers either: the suite never reaches the real Overpass.
+    FOOD_OVERPASS_FALLBACK_URLS: '',
     // The one-request-a-second pace is asserted by places.test.js with the policy's real second; the rest of the
     // suite must not pay it.
     FOOD_OSM_MIN_INTERVAL_MS: '1',
