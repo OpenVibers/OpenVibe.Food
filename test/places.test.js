@@ -195,7 +195,8 @@ const OVERPASS = '/api/interpreter';
             assert.strictEqual(r.json().code, 'food.place.upstream');
             const page = await t.get('/near?lat=41&lon=-91');
             assert.strictEqual(page.status, 200, 'the page still renders');
-            assert.match(page.text, /the place service answered 503/, 'the page says what went wrong');
+            // Geocoding is cached by now, so it is Overpass that fails: said plainly (places-fallback.test.js).
+            assert.match(page.text, /the place service answered 503|OpenStreetMap&#39;s place servers are busy|OpenStreetMap's place servers are busy/, 'the page says what went wrong');
             osm.state.fail = false;
         });
     } finally {
@@ -222,7 +223,7 @@ const OVERPASS = '/api/interpreter';
                 const r = await offline.get('/api/v1/places?lat=51.5&lon=-0.1&kind=foodbank');
                 assert.strictEqual(r.status, 502);
                 assert.strictEqual(r.json().code, 'food.place.upstream');
-                assert.match(r.json().detail, /could not be reached/);
+                assert.match(r.json().detail, /could not be reached|place servers are busy right now \(1 tried\)/);
             } finally { await offline.close(); }
         });
 

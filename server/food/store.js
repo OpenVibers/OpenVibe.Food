@@ -13,10 +13,12 @@ const parse = (v) => (v == null ? null : typeof v === 'string' ? JSON.parse(v) :
 
 // ── food_geo_cache ───────────────────────────────────────────
 /** A cached upstream answer that has not expired, or null. */
-async function cacheGet(s, key) {
+// An expired answer is kept this long after its TTL, only to stand in when OpenStreetMap is not answering (stale).
+const STALE_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
+async function cacheGet(s, key, { stale = false } = {}) {
     const row = await s.db.maybe('SELECT body, fetched_at, expires_at FROM food_geo_cache WHERE key = $1', [key]);
-    if (!row || row.expires_at <= s.iso()) return null;
-    return { body: parse(row.body), fetched_at: row.fetched_at, expires_at: row.expires_at };
+    if (!row || (!stale && row.expires_at <= s.iso())) return null;
+    return { body: parse(row.body), fetched_at: row.fetched_at, expires_at: row.expires_at, stale: row.expires_at <= s.iso() };
 }
 async function cachePut(s, key, body, ttlMs) {
     const fetchedAt = s.iso();
@@ -28,10 +30,11 @@ async function cachePut(s, key, body, ttlMs) {
     return { fetched_at: fetchedAt, expires_at: expiresAt };
 }
 /** Drop expired rows (called at boot; the table stays small because every answer is bounded). */
-const cachePrune = (s) => s.db.exec('DELETE FROM food_geo_cache WHERE expires_at <= $1', [s.iso()]);
+const cachePrune = (s) => s.db.exec('DELETE FROM food_geo_cache WHERE expires_at <= $1', [new Date(s.now() - STALE_KEEP_MS).toISOString()]);
 
 /**
- * Prune the geo cache now, then hourly: an expired row is ignored anyway, this only keeps the table small. The
+ * Prune the geo cache now, then hourly: a row 30 days past its TTL goes (until then it only stands in when OSM is down;
+ * an expired row is otherwise ignored), which keeps the table small. The
  * interval is unref'd so it never holds the process open; the returned timer is what the entry point clears on
  * shutdown (server/index.js). This repository has no restore-drill mode; if one is added it must skip this timer,
  * because a drill reads a restored database and must not write to it.
