@@ -21,7 +21,7 @@ const BUDGETS = {
     htmlBrotliKB: 11,   // 9.8 on 2026-10-22; 7.0 (6.2 before 4.1.0)
     jsFiles: 5,   // 5 (theme-loader, web-runtime, navbar, footer, boost: openvibe-shared/shell)
     jsRawKB: 264,   // 239.8
-    jsBrotliKB: 62.5,   // 56.5
+    jsBrotliKB: 67,   // 65.3 Shared 4.12.0: the light/dark switch, the seasonal mark and the theme pairs; 56.5
     cssFiles: 3,   // 3 (app.css, the cached /shared/showcase.css and css/home.css)
     // 16.4 since the product's own pages brought their stylesheet with them (the search and plan forms, the place
     // cards, the pantry's tick list); app.css itself stayed within a few lines.
