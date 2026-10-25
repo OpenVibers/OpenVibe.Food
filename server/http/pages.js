@@ -30,7 +30,7 @@ const { send } = require('../render/layout');
 const foods = require('../food/foods');
 const { NOTE: OFFICIAL_NOTE } = require('../food/official-prices');
 const { planMeals } = require('../food/planner');
-const { searchPlaces, safeUrl, ATTRIBUTION } = require('../food/places');
+const { searchPlaces, safeUrl, ATTRIBUTION, NEAR_CITIES } = require('../food/places');
 const { matchPantry } = require('../food/pantry-match');
 const { suggestRecipes } = require('../food/recipes');
 const store = require('../food/store');
@@ -111,7 +111,6 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
     const byProtein = foods.FOODS.filter((f) => proteinPerDollar(f)).sort((a, b) => proteinPerDollar(b) - proteinPerDollar(a)).slice(0, 8);
     const shortName = (f) => f.name.replace(/\s*\([^)]*\)\s*$/, '');
     const foodCard = (f, main, label) => html`<li><a href="/foods/${f.slug}"><b>${shortName(f)}</b><span class="hc-main"><strong>${main}</strong> ${label}</span><span class="hc-sub">${money(f.price)} at ${f.cheapest_store_name}, typical</span></a></li>`;
-    const NEAR_CITIES = ['New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX', 'Phoenix, AZ', 'Philadelphia, PA', 'San Antonio, TX', 'Seattle, WA'];
     r.get('/', async (req, res) => {
         let lib = { total: 0, cheap: [] };
         if (ctx.library) {

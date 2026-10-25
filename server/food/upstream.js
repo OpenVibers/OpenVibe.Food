@@ -45,6 +45,7 @@ const keyOf = (q) => String(q).trim().toLowerCase().replace(/\s+/g, ' ');
 
 function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => Date.now(), log = console } = {}) {
     const osm = config.osm;
+    const failed = new Map();   // area query key → when it last failed (this process)
     const pacers = new Map();
     const pacerFor = (rawUrl) => {
         const host = new URL(rawUrl).host;
@@ -68,11 +69,21 @@ function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => D
         try { return await res.json(); } catch { throw new UpstreamError('food.place.upstream', 'the place service answered something that is not JSON'); }
     }
 
-    async function cached(key, fn) {
-        const hit = await geo.cacheGet(s, key);
+    async function cached(key, fn, { failedWithinMs = 0, force = false } = {}) {
+        const hit = force ? null : await geo.cacheGet(s, key);
         if (hit) return { body: hit.body, cached: true, fetched_at: hit.fetched_at };
+        // The same question failed a moment ago: its last answer if there is one, else the refusal at once.
+        if (failedWithinMs && !force && now() - (failed.get(key) || -Infinity) < failedWithinMs) {
+            const old = await geo.cacheGet(s, key, { stale: true });
+            if (old) return { body: old.body, cached: true, stale: true, fetched_at: old.fetched_at };
+            throw new UpstreamError('food.place.upstream', 'OpenStreetMap\'s place servers were busy a moment ago. Try again in a few minutes.');
+        }
         let body;
-        try { body = await fn(); } catch (err) {
+        try { body = await fn(); failed.delete(key); } catch (err) {
+            if (failedWithinMs) {
+                if (failed.size > 1000) failed.clear();
+                failed.set(key, now());
+            }
             // OSM not answering: the last answer for the same question, however old (kept 30 days past its TTL).
             const old = await geo.cacheGet(s, key, { stale: true });
             if (old) return { body: old.body, cached: true, stale: true, fetched_at: old.fetched_at };
@@ -92,21 +103,24 @@ function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => D
         return cached(`nominatim:${keyOf(query)}:${limit}`, () => pacerFor(osm.nominatimUrl).run(() => fetchJson(url)));
     }
 
+    const overpassKey = (query) => `overpass:${crypto.createHash('sha256').update(query).digest('hex')}`;
+
     /**
      * One bounded Overpass query → its elements. Cached by the query text, so the same area is asked once. The servers
-     * in osm.overpassUrls are tried in order, each for osm.overpassTryMs (the last one for what is left of timeoutMs),
-     * so one overloaded server no longer holds the page for the whole budget.
+     * in osm.overpassUrls are tried in order, each for `tryMs` (the last one for what is left of `budgetMs`), so one
+     * overloaded server no longer holds the page for the whole budget. A query that just failed refuses at once for
+     * osm.retryAfterMs. `force` (the background warmer) asks again even when a cached answer is still fresh.
      */
-    function overpass(query) {
+    function overpass(query, { budgetMs = osm.timeoutMs, tryMs = osm.overpassTryMs, force = false } = {}) {
         const body = `data=${encodeURIComponent(query)}`;
         const urls = osm.overpassUrls && osm.overpassUrls.length ? osm.overpassUrls : [osm.overpassUrl];
-        return cached(`overpass:${crypto.createHash('sha256').update(query).digest('hex')}`, async () => {
+        return cached(overpassKey(query), async () => {
             const started = now();
             let tried = 0;
             for (const [i, base] of urls.entries()) {
-                const left = osm.timeoutMs - (now() - started);
+                const left = budgetMs - (now() - started);
                 if (left < 1000) break;
-                const timeoutMs = i === urls.length - 1 ? left : Math.min(left, osm.overpassTryMs);
+                const timeoutMs = i === urls.length - 1 ? left : Math.min(left, tryMs);
                 tried++;
                 try {
                     return await pacerFor(base).run(() => fetchJson(new URL(base), {
@@ -119,10 +133,16 @@ function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => D
                 }
             }
             throw new UpstreamError('food.place.upstream', `OpenStreetMap's place servers are busy right now (${tried} tried). Try again in a few minutes.`);
-        });
+        }, { failedWithinMs: osm.retryAfterMs, force });
     }
 
-    return { geocode, overpass, fetchJson, UpstreamError };
+    /** When an area query's cached answer expires (an ISO time), or null when there is none or it already has. */
+    async function cachedUntil(query) {
+        const hit = await geo.cacheGet(s, overpassKey(query));
+        return hit ? hit.expires_at : null;
+    }
+
+    return { geocode, overpass, cachedUntil, fetchJson, UpstreamError };
 }
 
 module.exports = { createUpstream, createPacer, UpstreamError };

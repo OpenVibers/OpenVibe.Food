@@ -196,7 +196,8 @@ const OVERPASS = '/api/interpreter';
             const page = await t.get('/near?lat=41&lon=-91');
             assert.strictEqual(page.status, 200, 'the page still renders');
             // Geocoding is cached by now, so it is Overpass that fails: said plainly (places-fallback.test.js).
-            assert.match(page.text, /the place service answered 503|OpenStreetMap&#39;s place servers are busy|OpenStreetMap's place servers are busy/, 'the page says what went wrong');
+            // The API call just above failed the same area query, so the page gets the remembered refusal at once.
+            assert.match(page.text, /the place service answered 503|OpenStreetMap(&#39;|')s place servers (are|were) busy/, 'the page says what went wrong');
             osm.state.fail = false;
         });
     } finally {
