@@ -46,6 +46,7 @@ const keyOf = (q) => String(q).trim().toLowerCase().replace(/\s+/g, ' ');
 function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => Date.now(), log = console } = {}) {
     const osm = config.osm;
     const failed = new Map();   // area query key → when it last failed (this process)
+    let lastGood = null;        // the Overpass server that answered last: asked first next time
     const pacers = new Map();
     const pacerFor = (rawUrl) => {
         const host = new URL(rawUrl).host;
@@ -108,12 +109,14 @@ function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => D
     /**
      * One bounded Overpass query → its elements. Cached by the query text, so the same area is asked once. The servers
      * in osm.overpassUrls are tried in order, each for `tryMs` (the last one for what is left of `budgetMs`), so one
-     * overloaded server no longer holds the page for the whole budget. A query that just failed refuses at once for
+     * overloaded server no longer holds the page for the whole budget; the one that answered last goes first (on
+     * 2026-10-25 only the third answered, and a search spent 16 s on the first two before reaching it). A query that just failed refuses at once for
      * osm.retryAfterMs. `force` (the background warmer) asks again even when a cached answer is still fresh.
      */
     function overpass(query, { budgetMs = osm.timeoutMs, tryMs = osm.overpassTryMs, force = false } = {}) {
         const body = `data=${encodeURIComponent(query)}`;
-        const urls = osm.overpassUrls && osm.overpassUrls.length ? osm.overpassUrls : [osm.overpassUrl];
+        const all = osm.overpassUrls && osm.overpassUrls.length ? osm.overpassUrls : [osm.overpassUrl];
+        const urls = lastGood && all.includes(lastGood) ? [lastGood, ...all.filter((u) => u !== lastGood)] : all;
         return cached(overpassKey(query), async () => {
             const started = now();
             let tried = 0;
@@ -123,11 +126,13 @@ function createUpstream({ config, s, fetchImpl = globalThis.fetch, now = () => D
                 const timeoutMs = i === urls.length - 1 ? left : Math.min(left, tryMs);
                 tried++;
                 try {
-                    return await pacerFor(base).run(() => fetchJson(new URL(base), {
+                    const answer = await pacerFor(base).run(() => fetchJson(new URL(base), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body,
                     }, { timeoutMs }));
+                    lastGood = base;
+                    return answer;
                 } catch (err) {
                     log.warn && log.warn(`[OpenVibe.Food] Overpass ${new URL(base).host}: ${err.message}`);
                 }
