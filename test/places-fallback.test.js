@@ -36,6 +36,19 @@ const { startOsm } = require('./helpers/osm');
             first.state.overpassFail = false;
         });
 
+        await check('the server that answered last is asked first: the next search goes straight to it', async () => {
+            await clearOverpassCache();
+            first.state.overpassFail = false;
+            const before = [overpassCalls(first), overpassCalls(second)];
+            const r = await search();
+            assert.strictEqual(r.status, 200, r.text);
+            assert.deepStrictEqual([overpassCalls(first) - before[0], overpassCalls(second) - before[1]], [0, 1], 'the fallback that answered went first');
+            second.state.overpassFail = true;
+            await clearOverpassCache();
+            assert.strictEqual((await search()).status, 200, 'it fails: the others are still tried in order');
+            second.state.overpassFail = false;
+        });
+
         await check('the first server is too slow: after its share of the budget the next one answers', async () => {
             await clearOverpassCache();
             first.state.overpassDelayMs = 5000;
