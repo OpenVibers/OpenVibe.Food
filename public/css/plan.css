@@ -1,6 +1,6 @@
 /* OpenVibe.Food — a saved plan's page (/plan/p/:id) and joining a household (/plan/join/…) only, so the site-wide
    stylesheet stays inside its budget. */
-.shop-list { list-style: none; padding: 0; margin: 8px 0 18px; display: grid; gap: 6px; }
+.shop-list { list-style: none; padding: 0; margin: 8px 0 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .shop-list li { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--border, #1f2d47); border-radius: 10px; background: var(--bg-card, #131c2e); }
 .shop-list li.got .shop-name { text-decoration: line-through; opacity: .7; }
 .shop-list form { margin: 0; }

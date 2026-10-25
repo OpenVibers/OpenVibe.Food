@@ -1,5 +1,5 @@
 /* OpenVibe.Food — food recalls (/recalls, /recalls/:number) and the home page's recall block. */
-.recalls { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 12px; }
+.recalls { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .recall { border: 1px solid var(--border, #1f2d47); border-radius: 14px; background: var(--bg-card, #131c2e); padding: 14px 16px; min-width: 0; }
 .recall p { margin: 4px 0; overflow-wrap: anywhere; }
 .recall-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 6px; }
