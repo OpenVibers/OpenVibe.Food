@@ -3,14 +3,14 @@
 .dv-form label { font-weight: 700; font-size: .9rem; }
 .dv-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .dv-row input { flex: 1 1 260px; min-width: 0; font: inherit; height: 46px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-light, #2c3d5c); background: var(--bg-secondary, #0f1729); color: var(--text-primary, #e6edf7); }
-.dv-apps { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.dv-apps { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); }
 .dv-app { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border, #1f2d47); background: var(--bg-card, #131c2e); transition: border-color .15s ease, transform .15s ease; }
 .dv-app:hover { border-color: var(--accent, #3b82f6); transform: translateY(-1px); }
 .dv-open { display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--text-primary, #e6edf7); }
 .dv-name { font-weight: 700; font-size: 1.05rem; }
 .dv-host { font-size: .82rem; color: var(--accent-text, var(--accent, #3b82f6)); }
 .dv-best { margin: 0; }
-.dv-kits { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 8px; }
+.dv-kits { list-style: none; padding: 0; margin: 10px 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .dv-kit { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border, #1f2d47); background: var(--bg-card, #131c2e); }
 .dv-kit-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .dv-kit-name { font-weight: 700; color: var(--text-primary, #e6edf7); text-decoration: none; }

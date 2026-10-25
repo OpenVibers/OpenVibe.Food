@@ -24,6 +24,6 @@
 .recipe-total { margin: 6px 0 2px; border-top: 1px solid var(--border-light, #2c3d5c); padding-top: 6px; }
 .recipe-buy-none { color: var(--success-text, var(--success, #22c55e)); }
 .recipe-notes { margin-top: 10px; color: var(--text-secondary, #96a7c2); }
-.lib-grid { list-style: none; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.lib-grid { list-style: none; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); }
 .lib-card h2 { margin: 0 0 6px; font-size: 1.1rem; }
 .lib-recipe .recipe-head h1 { margin: 0; font-size: 1.6rem; }
