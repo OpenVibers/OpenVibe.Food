@@ -62,6 +62,8 @@ async function createApp(opts = {}) {
     // it from here, so every test points it at a stand-in through FOOD_NOMINATIM_URL / FOOD_OVERPASS_URL.
     // Its own wall clock, not the store's: the pace between two calls must not depend on an injected test clock.
     ctx.upstream = createUpstream({ config, s, fetchImpl, log });
+    // The home's "food near" cities, warmed in the background so their links read the cache (server/index.js starts it).
+    ctx.nearWarm = require('./food/near-warm').createNearWarm({ config, upstream: ctx.upstream, log });
     ctx.barcodes = opts.barcodes || require('./food/barcode').createBarcodes({ config, fetchImpl });
     // Drop expired geocode/area answers now and hourly; an expired row is ignored anyway, this only keeps the table
     // small. The interval is unref'd and kept on ctx so the entry point clears it on shutdown (server/index.js).

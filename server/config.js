@@ -52,14 +52,24 @@ function load(env = process.env) {
             overpassUrl: trim(env.FOOD_OVERPASS_URL || 'https://overpass-api.de/api/interpreter'),
             // Public Overpass servers tried in order, each with overpassTryMs of the timeoutMs budget: one is often
             // overloaded (2026-10-24: overpass-api.de took 26 s and returned nothing, so every near search took 25 s).
+            // The fallbacks are the OSM wiki's public instances without request limits: private.coffee (formerly
+            // overpass.kumi.systems, the same servers) and VK Maps (2026-10-25: the only one answering while the others
+            // timed out).
             overpassUrls: [...new Set([trim(env.FOOD_OVERPASS_URL || 'https://overpass-api.de/api/interpreter'),
-                ...String(env.FOOD_OVERPASS_FALLBACK_URLS ?? 'https://overpass.kumi.systems/api/interpreter,https://overpass.private.coffee/api/interpreter')
+                ...String(env.FOOD_OVERPASS_FALLBACK_URLS ?? 'https://overpass.private.coffee/api/interpreter,https://maps.mail.ru/osm/tools/overpass/api/interpreter')
                     .split(',').map((u) => trim(u)).filter(Boolean)])],
             overpassTryMs: Math.max(1000, int(env.FOOD_OVERPASS_TRY_MS, 8_000)),
             // Identify to OSM with a contact URL, as both policies require; never a browser User-Agent.
             userAgent: env.FOOD_OSM_USER_AGENT || `OpenVibeFood/0.1 (+${baseUrl})`,
             minIntervalMs: Math.max(0, int(env.FOOD_OSM_MIN_INTERVAL_MS, 1000)),
             timeoutMs: Math.max(1000, int(env.FOOD_OSM_TIMEOUT_MS, 25_000)),
+            // After an area query failed, the same query refuses at once for this long (or answers its last result):
+            // the next visitor does not wait out the whole budget on servers that just failed.
+            retryAfterMs: Math.max(0, int(env.FOOD_OSM_RETRY_AFTER_MS, 180_000)),
+            // The home's "food near" cities warmed in the background (server/food/near-warm.js): how often (0 = off),
+            // and the budget of each area query there, off any visitor's path.
+            nearWarmMs: Math.max(0, int(env.FOOD_NEAR_WARM_MS, 6 * 60 * 60 * 1000)),
+            nearWarmBudgetMs: Math.max(1000, int(env.FOOD_NEAR_WARM_BUDGET_MS, 150_000)),
             cacheTtlMs: Math.max(60_000, int(env.FOOD_GEO_CACHE_TTL_MS, 7 * 24 * 60 * 60 * 1000)),
             defaultRadiusKm: 8,
             maxRadiusKm: 50,

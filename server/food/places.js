@@ -141,6 +141,15 @@ function elementsToResults(elements, kind, origin, limit) {
 
 const clamp = (n, lo, hi) => Math.min(Math.max(n, lo), hi);
 
+/** The cities the home links to (/near?q=<city>), kept warm in the background (server/food/near-warm.js). */
+const NEAR_CITIES = ['New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX', 'Phoenix, AZ', 'Philadelphia, PA', 'San Antonio, TX', 'Seattle, WA'];
+
+/** The area search's radius in metres for a requested radius in km (the default when none), within the configured bounds. */
+function radiusMetres(radiusKm, config) {
+    const maxRadius = (config && config.osm.maxRadiusKm) || 50;
+    return Math.round(clamp(Number(radiusKm) || (config && config.osm.defaultRadiusKm) || 8, 0.5, maxRadius) * 1000);
+}
+
 /**
  * The place search behind both the API and the pages.
  *
@@ -167,10 +176,9 @@ async function searchPlaces(upstream, { kind = 'foodbank', q = null, lat = null,
         throw new UpstreamError('food.place.invalid', 'q: a place to search for (or lat and lon)', { status: 422 });
     }
 
-    const maxRadius = (config && config.osm.maxRadiusKm) || 50;
-    const rad = clamp(Number(radiusKm) || (config && config.osm.defaultRadiusKm) || 8, 0.5, maxRadius);
+    const radiusM = radiusMetres(radiusKm, config);
+    const rad = radiusM / 1000;
     const cap = clamp(Number(limit) || (config && config.osm.maxResults) || 60, 1, (config && config.osm.maxResults) || 60);
-    const radiusM = Math.round(rad * 1000);
 
     const perKind = {};
     let fetchedAt = null;
@@ -199,4 +207,4 @@ async function searchPlaces(upstream, { kind = 'foodbank', q = null, lat = null,
     };
 }
 
-module.exports = { searchPlaces, haversineKm, formatAddress, isBudgetStore, safeUrl, queryFor, elementsToResults, ATTRIBUTION, SOURCE, FOOD_BANK_TYPES, KINDS };
+module.exports = { searchPlaces, haversineKm, formatAddress, isBudgetStore, safeUrl, queryFor, radiusMetres, elementsToResults, ATTRIBUTION, SOURCE, FOOD_BANK_TYPES, KINDS, NEAR_CITIES };
