@@ -20,13 +20,13 @@ const BUDGETS = {
     htmlRawKB: 48,   // 43.3 on 2026-10-22; measured 28.7 with plan together as the sixth feature (2026-10-15); 27.6 with Shared 4.1.0's manifest + apple-touch-icon links (24.9 before; the home page: hero, features, steps, cta, JSON-LD)
     htmlBrotliKB: 11,   // 9.8 on 2026-10-22; 7.0 (6.2 before 4.1.0)
     jsFiles: 5,   // 5 (theme-loader, web-runtime, navbar, footer, boost: openvibe-shared/shell)
-    jsRawKB: 264,   // 239.8
+    jsRawKB: 269,   // 264.3 with Shared 4.13.0 (2026-10-26: account links); 239.8
     jsBrotliKB: 67,   // 65.3 Shared 4.12.0: the light/dark switch, the seasonal mark and the theme pairs; 56.5
     cssFiles: 3,   // 3 (app.css, the cached /shared/showcase.css and css/home.css)
     // 16.4 since the product's own pages brought their stylesheet with them (the search and plan forms, the place
     // cards, the pantry's tick list); app.css itself stayed within a few lines.
-    cssRawKB: 24.5,   // 22.2 with css/home.css; 16.4 before
-    cssBrotliKB: 5.9,     // 5.3 with css/home.css; 4.3 with the hero search panel
+    cssRawKB: 33,   // 28.1 with Shared 4.13.0 (2026-10-26: account links); 22.2 with css/home.css; 16.4 before
+    cssBrotliKB: 8,     // 6.4 with Shared 4.13.0 (2026-10-26: account links); 5.3 with css/home.css; 4.3 with the hero search panel
     externalFiles: 0,   // 0
 };
 
