@@ -195,6 +195,7 @@ ${raw(showcase.features({
             }))}
 ${FAQ.length ? html`<section class="sc-sec" aria-labelledby="h-faq"><h2 id="h-faq">Questions people ask</h2>
 <div class="home-faq">${FAQ.map((f) => html`<details><summary>${f.question}</summary><p>${f.answer}</p></details>`)}</div></section>` : ''}
+${raw(showcase.network({ service: 'food' }))}
 ${raw(showcase.cta({
                 title: 'Start where you are',
                 text: 'Search your town for a food bank, plan the next three days for what you can spend, or look up what is in the tin before you open it.',
