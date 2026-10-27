@@ -17,11 +17,11 @@ const BUDGETS = {
     // Raised 2026-10-22 for the curated home (the owner's "rich content on the home page"): the most food for a dollar,
     // the cheapest protein, the food groups, every delivery app with a search, the meal kits, food banks by city, the
     // questions, ItemList + FAQPage JSON-LD, and css/home.css. Measured 43.3/9.8 KB HTML (empty library) and 22.2/5.3 KB CSS.
-    htmlRawKB: 48,   // 43.3 on 2026-10-22; measured 28.7 with plan together as the sixth feature (2026-10-15); 27.6 with Shared 4.1.0's manifest + apple-touch-icon links (24.9 before; the home page: hero, features, steps, cta, JSON-LD)
+    htmlRawKB: 54,   // 49.2 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 43.3 on 2026-10-22; measured 28.7 with plan together as the sixth feature (2026-10-15); 27.6 with Shared 4.1.0's manifest + apple-touch-icon links (24.9 before; the home page: hero, features, steps, cta, JSON-LD)
     htmlBrotliKB: 11,   // 9.8 on 2026-10-22; 7.0 (6.2 before 4.1.0)
     jsFiles: 5,   // 5 (theme-loader, web-runtime, navbar, footer, boost: openvibe-shared/shell)
-    jsRawKB: 269,   // 264.3 with Shared 4.13.0 (2026-10-26: account links); 239.8
-    jsBrotliKB: 67,   // 65.3 Shared 4.12.0: the light/dark switch, the seasonal mark and the theme pairs; 56.5
+    jsRawKB: 278,   // 273.2 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 264.3 with Shared 4.13.0 (2026-10-26: account links); 239.8
+    jsBrotliKB: 69,   // 67.9 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 65.3 Shared 4.12.0: the light/dark switch, the seasonal mark and the theme pairs; 56.5
     cssFiles: 3,   // 3 (app.css, the cached /shared/showcase.css and css/home.css)
     // 16.4 since the product's own pages brought their stylesheet with them (the search and plan forms, the place
     // cards, the pantry's tick list); app.css itself stayed within a few lines.
