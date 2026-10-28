@@ -57,7 +57,9 @@ async function createApp(opts = {}) {
     const keys = createKeyStore({ config, fetchImpl, log });
     const sso = createSso({ config, keys, fetchImpl, now: s.now, log });
     const principal = createPrincipal({ config, keys });
-    const ctx = { config, s, keys, sso, principal, log };
+    // A food box's codes and score from OpenVibe.Coupons and OpenVibe.Reviews (server/food/box-links.js; off when unset).
+    const boxLinks = (config.boxLinks.couponsUrl || config.boxLinks.reviewsUrl) ? require('./food/box-links').createBoxLinks(config.boxLinks) : null;
+    const ctx = { config, s, keys, sso, principal, log, boxLinks };
     // The only outbound client this service has (Nominatim + Overpass, paced and cached); the pages and the API get
     // it from here, so every test points it at a stand-in through FOOD_NOMINATIM_URL / FOOD_OVERPASS_URL.
     // Its own wall clock, not the store's: the pace between two calls must not depend on an injected test clock.

@@ -24,11 +24,12 @@ const TAGLINE = 'What should we eat?';
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 // The product's own navigation: one entry per public page it serves.
 const NAV = [
-    { label: 'Food near you', href: '/near' },
-    { label: 'Meal plan', href: '/plan' },
+    { label: 'Food near you', href: '/near', icon: 'fa-location-dot' },
+    { label: 'Meal plan', href: '/plan', icon: 'fa-list-check' },
+    { label: 'Food boxes', href: '/boxes', icon: 'fa-utensils' },
+    { label: 'Cupboard', href: '/pantry', icon: 'fa-house' },
+    { label: 'Recipes', href: '/recipes', icon: 'fa-book' },
     { label: 'Food list', href: '/foods' },
-    { label: 'Cupboard', href: '/pantry' },
-    { label: 'Recipes', href: '/recipes' },
     { label: 'Delivery', href: '/delivery' },
     { label: 'What shipped', href: '/updates' },
 ];
@@ -61,7 +62,8 @@ function renderPage(o) {
     const nav = {
         service: 'food',
         apiBase: NETWORK_URL,
-        links: NAV.map((l) => ({ label: l.label, href: l.href, active: pathNow === l.href || pathNow.startsWith(`${l.href}/`) })),
+        links: NAV.map((l) => ({ label: l.label, href: l.href, ...(l.icon ? { icon: l.icon } : {}), active: pathNow === l.href || pathNow.startsWith(`${l.href}/`) })),
+        appBar: true,   // phones: the five places with icons as the bottom tab bar, More for the rest (Shared 4.20)
         history: { type: 'page', title: o.title || SITE_NAME },
         silentLogin: `${o.config.baseUrl}/auth/login?silent=1&next={url}`,
         sessionUrl: '/auth/me',
@@ -69,7 +71,7 @@ function renderPage(o) {
         logoutUrl: '/auth/logout?next={path}',   // Sign out in the shared navbar ends this site's session too
         notificationsRealtime: true,             // the bell hears new notifications over OpenVibe.Events (Shared 1.22.0)
     };
-    const footer = { service: 'food', variant: 'full', mount: '#ov-footer', brandName: SITE_NAME, updates: '/updates' };
+    const footer = { service: 'food', variant: 'auto', path: pathNow.split('?')[0], mount: '#ov-footer', brandName: SITE_NAME, updates: '/updates' };   // full on the front page only (Shared 4.19)
     const account = signedIn
         ? html`Signed in as <strong>${viewer.displayName || viewer.username || 'you'}</strong> · <a href="/auth/logout?next=${loginNext}">Sign out</a>`
         : html`<a href="/auth/login?next=${loginNext}">Sign in with OpenVibe</a>`;

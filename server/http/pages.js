@@ -35,6 +35,7 @@ const { matchPantry } = require('../food/pantry-match');
 const { suggestRecipes } = require('../food/recipes');
 const store = require('../food/store');
 const delivery = require('../food/delivery');
+const { mountBoxPages } = require('./box-pages');
 const householdChat = require('../food/household-chat');
 const { date: recallDate } = require('./recall-pages');
 const seo = require('openvibe-shared/seo');
@@ -815,6 +816,9 @@ ${row.recipes.length ? html`<div class="recipe-grid">${row.recipes.map(recipeBlo
         });
     }
 
+    // ── Food boxes: every meal kit and food box side by side (./box-pages.js, server/food/boxes.js) ──
+    mountBoxPages(r, { page, signedIn, PUBLIC_CACHE, boxLinks: ctx.boxLinks || null });
+
     // ── Delivery and meal kits, compared (server/food/delivery.js): every app's own search, never their data ──
     r.get('/delivery', (req, res) => {
         const q = delivery.cleanQuery(req.query.q);
@@ -836,7 +840,7 @@ ${row.recipes.length ? html`<div class="recipe-grid">${row.recipes.map(recipeBlo
 ${links.length ? html`<ul class="dv-apps">${links.map((l) => html`<li class="dv-app"><a class="dv-open" href="${l.url}" target="_blank" rel="noopener nofollow"><span class="dv-name">${l.name}</span><span class="dv-host">${hostOf(l.url)} ↗</span></a><p class="dv-best muted small">${l.best}</p></li>`)}</ul>
 <p class="muted small">Compare the totals each app shows you, delivery and service fees included. For coupon codes on an app's own page, the <a href="https://openvibe.coupons/companion">OpenVibe Companion</a> browser extension shows what OpenVibe.Coupons knows for it.</p>` : ''}
 <section aria-labelledby="h-kits"><h2 id="h-kits">Meal kits and prepared meals</h2>
-<p class="muted">Boxes of recipes and ingredients, or meals ready to heat. Prices change with the box size and the week, so each links to its own plans page; OpenVibe.Watch can tell you when a price changes.</p>
+<p class="muted">Boxes of recipes and ingredients, or meals ready to heat. <a href="/boxes"><strong>Every food box, compared</strong></a>: meal kits, ready meals, produce, meat and fish, snacks, coffee, baby and dog food, with prices as their own pages state them, plan sizes, diets, codes and reviews. Prices change with the box size and the week, so each links to its own plans page; OpenVibe.Watch can tell you when a price changes.</p>
 <ul class="dv-kits">${delivery.KITS.map(kitRow)}</ul>
 <p class="muted small">Budget kits usually cost the least per serving; premium ones cost more for organic or special-diet food, and prepared meals cost more again. The first box is often heavily discounted, so compare the price from the second week.</p></section>
 <p class="muted small">Cooking from what you have is cheaper still: <a href="/pantry">your cupboard</a>, <a href="/recipes">recipe ideas</a> and <a href="/plan">a meal plan</a> with its shopping list.</p>`,

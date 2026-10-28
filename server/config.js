@@ -104,6 +104,13 @@ function load(env = process.env) {
         // (server/food/recipes.js).
         aiUrl: trim(env.OV_AI_INTERNAL_URL || ''),
 
+        // OpenVibe.Coupons and OpenVibe.Reviews (server/food/box-links.js): a food box's codes and score, read from their
+        // public APIs when a box is shown. Production reads them on the loopback; elsewhere they are off unless set.
+        boxLinks: {
+            couponsUrl: trim(env.FOOD_COUPONS_URL == null ? (isProduction ? 'http://127.0.0.1:4850' : '') : env.FOOD_COUPONS_URL),
+            reviewsUrl: trim(env.FOOD_REVIEWS_URL == null ? (isProduction ? 'http://127.0.0.1:4830' : '') : env.FOOD_REVIEWS_URL),
+        },
+
         // OpenVibe.Events → this service (server/events-consumer.js). The secret signs a delivery (comma-separated
         // for rotation, 32+ characters each); unset turns POST /internal/events off (503). The url is where the
         // network.account.export_requested and network.account.deleted subscriptions are created at boot, off when

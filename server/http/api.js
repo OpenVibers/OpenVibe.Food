@@ -6,6 +6,9 @@
  *   GET  /places?q=&kind=foodbank|grocery|both[&lat=&lon=&radius=&limit=]   public   food near a place (OpenStreetMap)
  *   GET  /foods[?group=&q=]                                                 public   the food list
  *   GET  /foods/:slug                                                       public   one food
+ *   GET  /boxes[?kind=&diet=&q=]                                            public   every food box (server/food/boxes.js)
+ *   GET  /boxes/:slug                                                       public   one box, with its codes and score
+ *   GET  /boxes/:slug/cost?people=&meals=&weeks=                            public   what its stated price comes to
  *   POST /plans                                                             signed in  plan a shop and save it
  *   GET  /plans                                                             signed in  the plans you saved
  *   GET  /plans/:id                                                         signed in  one of yours
@@ -21,6 +24,7 @@ const express = require('express');
 const contracts = require('openvibe-contracts');
 const { asyncRouter } = require('./router');
 const foods = require('../food/foods');
+const boxes = require('../food/boxes');
 const { planMeals } = require('../food/planner');
 const { searchPlaces } = require('../food/places');
 const { matchPantry } = require('../food/pantry-match');
@@ -81,6 +85,36 @@ function createApi(ctx) {
             groups: Object.entries(foods.GROUPS).map(([id, g]) => ({ group: id, name: g.name, daily_min_g: g.dailyMin })),
             source: FOOD_SOURCE,
         });
+    });
+
+    // ── Food boxes: every fact with the service's own page and the day it was read; codes and scores live ──
+    r.get('/boxes', limits.reads('food.food.read'), (req, res) => {
+        const kind = typeof req.query.kind === 'string' && req.query.kind ? req.query.kind : null;
+        if (kind && !boxes.KIND[kind]) return fail(req, res, 422, 'food.box.invalid', `kind: one of ${boxes.KINDS.map((x) => x.kind).join(', ')}`);
+        const diet = typeof req.query.diet === 'string' && req.query.diet ? req.query.diet : null;
+        if (diet && !boxes.DIETS[diet]) return fail(req, res, 422, 'food.box.invalid', `diet: one of ${Object.keys(boxes.DIETS).join(', ')}`);
+        const q = typeof req.query.q === 'string' && req.query.q ? req.query.q.slice(0, 60) : null;
+        const list = boxes.list({ kind, diet, q });
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.json({ boxes: list.map(boxes.toWire), count: list.length, kinds: boxes.KINDS, diets: boxes.DIETS,
+            method: 'Each fact was read on the service\'s own public pages by a person (sources, checked); nothing is fetched from the services. A null fact was not checked.' });
+    });
+
+    r.get('/boxes/:slug', limits.reads('food.food.read'), async (req, res) => {
+        const b = boxes.get(req.params.slug);
+        if (!b) return fail(req, res, 404, 'food.box.not_found', `no box "${String(req.params.slug).slice(0, 64)}"; GET /api/v1/boxes lists them`);
+        const links = ctx.boxLinks ? await ctx.boxLinks.forBox(b) : { coupons: null, reviews: null };
+        res.set('Cache-Control', 'public, max-age=300');
+        res.json({ box: boxes.toWire(b), coupons: links.coupons, reviews: links.reviews });
+    });
+
+    r.get('/boxes/:slug/cost', limits.reads('food.food.read'), (req, res) => {
+        const b = boxes.get(req.params.slug);
+        if (!b) return fail(req, res, 404, 'food.box.not_found', `no box "${String(req.params.slug).slice(0, 64)}"`);
+        const c = boxes.cost(b, { people: req.query.people || 2, meals: req.query.meals || 3, weeks: req.query.weeks || 1 });
+        if (!c) return fail(req, res, 422, 'food.box.no_cost', b.price && ['serving', 'meal'].includes(b.price.unit) ? `a plan size ${b.name} states: people ${b.people.join('/') || 'any'}, meals ${b.meals.join('/') || 'any'}` : `${b.name} has no stated price per serving or meal`);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.json({ box: b.slug, cost: c });
     });
 
     r.get('/foods/:slug', limits.reads('food.food.read'), (req, res) => {
