@@ -20,7 +20,7 @@ const BUDGETS = {
     htmlRawKB: 54,   // 49.2 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 43.3 on 2026-10-22; measured 28.7 with plan together as the sixth feature (2026-10-15); 27.6 with Shared 4.1.0's manifest + apple-touch-icon links (24.9 before; the home page: hero, features, steps, cta, JSON-LD)
     htmlBrotliKB: 13,   // 11.1 Shared 4.15.1 footer; 9.8 on 2026-10-22; 7.0 (6.2 before 4.1.0)
     jsFiles: 5,   // 5 (theme-loader, web-runtime, navbar, footer, boost: openvibe-shared/shell)
-    jsRawKB: 292,   // 287.2 Shared 4.17.0: OpenCoins and Vibes chips (wallet: true) in the navbar; 273.2 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 264.3 with Shared 4.13.0 (2026-10-26: account links); 239.8
+    jsRawKB: 297,   // 293 openvibe-shared 4.22.0: the navbar's magnifier search button and More dropdown (search.js and loading.js load only when used); 287.2 Shared 4.17.0: OpenCoins and Vibes chips (wallet: true) in the navbar; 273.2 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 264.3 with Shared 4.13.0 (2026-10-26: account links); 239.8
     jsBrotliKB: 72,   // 70.5 Shared 4.17.0: OpenCoins and Vibes chips (wallet: true) in the navbar; 67.9 openvibe-shared 4.15 footer: the compact footer opens into the whole one, and the pulse line; 65.3 Shared 4.12.0: the light/dark switch, the seasonal mark and the theme pairs; 56.5
     cssFiles: 3,   // 3 (app.css, the cached /shared/showcase.css and css/home.css)
     // 16.4 since the product's own pages brought their stylesheet with them (the search and plan forms, the place
