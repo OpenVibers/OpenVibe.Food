@@ -93,6 +93,7 @@ function aiStub() {
             assert.match(reviewed.text, /<meta name="robots" content="index/);
             assert.ok(reviewed.text.includes('checked this one'));
             // The node is the page: its title, the ingredients and steps it lists, and nothing the page does not have.
+            assert.strictEqual((reviewed.text.match(/application\/ld\+json/g) || []).length, 1, 'one JSON-LD script per page');
             const recipe = [...reviewed.text.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
                 .map((m) => JSON.parse(m[1])).find((x) => x['@type'] === 'Recipe');
             assert.ok(recipe, 'no Recipe JSON-LD on a reviewed recipe');
