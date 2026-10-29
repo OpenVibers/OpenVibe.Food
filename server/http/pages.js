@@ -128,10 +128,10 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
             eyebrow: `${SITE_NAME} · ${TAGLINE}`,
             title: 'Eat well.', accent: 'Spend less.',
             lede: 'Find food banks and budget grocers near you, plan meals with the shopping list and its cost, cook from what is in your cupboard, and compare every delivery app and meal kit at once.',
+            // Two, so they sit side by side on a phone; the food list has its own number and section below.
             actions: [
                 { label: 'Find food near you', href: '/near', primary: true },
                 { label: 'Plan a week', href: '/plan' },
-                { label: 'The food list', href: '/foods' },
             ],
             note: 'Open source (AGPL-3.0). Places come from OpenStreetMap © contributors (ODbL); prices are typical, not live.',
             aside: { html: String(searchForm({ panel: true })) },
@@ -158,13 +158,13 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
 ${stats.length ? html`<ul class="home-stats" aria-label="${SITE_NAME} in numbers">${stats.map((x) => html`<li><a href="${x.href}"><b>${x.value}</b><span>${x.label}</span></a></li>`)}</ul>` : ''}
 ${lib.cheap.length ? html`<section class="sc-sec" aria-labelledby="h-meals"><h2 id="h-meals">Cheap meals from the recipe library</h2>
 <p class="sc-lede">The recipes that cost least per serving, with every ingredient priced from the food list. Written by OpenVibe.AI: check a recipe before you cook it. <a href="/recipes/library">All ${lib.total} recipes</a></p>
-<ul class="home-cards">${lib.cheap.map((x) => html`<li><a href="/recipes/library/${x.slug}"><b>${x.title}</b><span class="hc-main"><strong>${money(x.cost / x.serves)}</strong> a serving</span><span class="hc-sub">${[`${money(x.cost)} to buy`, `serves ${x.serves}`, x.minutes ? `about ${x.minutes} min` : null].filter(Boolean).join(' · ')}</span></a></li>`)}</ul></section>` : ''}
+<ul class="home-cards short">${lib.cheap.map((x) => html`<li><a href="/recipes/library/${x.slug}"><b>${x.title}</b><span class="hc-main"><strong>${money(x.cost / x.serves)}</strong> a serving</span><span class="hc-sub">${[`${money(x.cost)} to buy`, `serves ${x.serves}`, x.minutes ? `about ${x.minutes} min` : null].filter(Boolean).join(' · ')}</span></a></li>`)}</ul></section>` : ''}
 <section class="sc-sec" aria-labelledby="h-value"><h2 id="h-value">The most food for a dollar</h2>
 <p class="sc-lede">Calories per dollar at the cheapest budget chain's typical price, from <a href="/foods">the food list</a>. Prices are a band to plan by, not a live price.</p>
-<ul class="home-cards">${byKcal.map((f) => foodCard(f, f.kcal_per_dollar.toLocaleString('en-US'), 'calories for $1'))}</ul></section>
+<ul class="home-cards short">${byKcal.map((f) => foodCard(f, f.kcal_per_dollar.toLocaleString('en-US'), 'calories for $1'))}</ul></section>
 <section class="sc-sec" aria-labelledby="h-protein"><h2 id="h-protein">The cheapest protein</h2>
 <p class="sc-lede">Grams of protein a dollar buys, at the same typical prices.</p>
-<ul class="home-cards">${byProtein.map((f) => foodCard(f, `${proteinPerDollar(f)} g`, 'of protein for $1'))}</ul></section>
+<ul class="home-cards short">${byProtein.map((f) => foodCard(f, `${proteinPerDollar(f)} g`, 'of protein for $1'))}</ul></section>
 <section class="sc-sec" aria-labelledby="h-groups"><h2 id="h-groups">Browse the food list</h2>
 <p class="sc-lede">Every food with its nutrition per serving and per 100 g, its typical price and the cheapest chain for it.</p>
 <ul class="home-cards three">${Object.entries(foods.GROUPS).map(([id, g]) => { const n = foods.FOODS.filter((f) => f.group === id).length; return n ? html`<li><a href="/foods?group=${id}"><b>${g.name}</b><span class="hc-main"><strong>${n}</strong> foods</span><span class="hc-sub">${g.examples}</span></a></li>` : ''; })}</ul></section>
@@ -173,17 +173,16 @@ ${lib.cheap.length ? html`<section class="sc-sec" aria-labelledby="h-meals"><h2 
 <form class="home-search" method="get" action="/delivery" role="search"><label for="home-dv-q">A dish, a restaurant or groceries</label><span class="home-search-row"><input id="home-dv-q" name="q" type="search" maxlength="120" placeholder="pad thai, tacos, milk and eggs" required><button class="sc-btn sc-primary" type="submit">Search every app</button></span></form>
 <ul class="home-chips">${delivery.APPS.map((a) => html`<li title="${a.best}">${a.name}</li>`)}</ul></section>
 <section class="sc-sec" id="kits" aria-labelledby="h-kits"><h2 id="h-kits">Meal kits, side by side</h2>
-<p class="sc-lede">From the cheapest kits to fully cooked meals. Each opens its own plans page, where the current price per serving is.</p>
-<ul class="home-cards five">${delivery.KITS.map((k) => html`<li><a href="${k.plans}" rel="noopener nofollow" target="_blank"><b>${k.name} <span class="hc-tag">${delivery.TIER_TEXT[k.tier]}</span></b><span class="hc-sub">${k.what}</span><span class="hc-host">${k.host} ↗</span></a></li>`)}</ul></section>
+<p class="sc-lede">From the cheapest kits to fully cooked meals. Each opens its own plans page, where the current price per serving is. <a href="/delivery#kits">All ${delivery.KITS.length} kits</a></p>
+<ul class="home-cards five short">${delivery.KITS.map((k) => html`<li><a href="${k.plans}" rel="noopener nofollow" target="_blank"><b>${k.name} <span class="hc-tag">${delivery.TIER_TEXT[k.tier]}</span></b><span class="hc-sub">${k.what}</span><span class="hc-host">${k.host} ↗</span></a></li>`)}</ul></section>
 <section class="sc-sec" aria-labelledby="h-near"><h2 id="h-near">Find a food bank</h2>
 <p class="sc-lede">Food banks, soup kitchens, community fridges and free pantry boxes, with hours, from OpenStreetMap. Search any town or postcode, or start with a city.</p>
 <ul class="home-chips">${NEAR_CITIES.map((c) => html`<li><a href="/near?${new URLSearchParams({ q: c })}">${c.split(',')[0]}</a></li>`)}</ul>
 <p><a class="sc-btn sc-primary" href="/near">Search near you</a></p></section>
 ${recalls.latest.length ? html`<section class="sc-sec" aria-labelledby="h-recalls"><h2 id="h-recalls">Food recalls</h2>
 <p class="sc-lede">The newest of the FDA's food recall reports: what was recalled, by whom and how serious it is. <a href="/recalls">All ${recalls.total} recalls</a></p>
-<ul class="home-cards">${recalls.latest.map((x) => html`<li><a href="/recalls/${x.recall_number}"><b>${x.product.length > 90 ? `${x.product.slice(0, 89).replace(/\s+\S*$/, '')}…` : x.product}</b><span class="hc-main"><strong>${x.classification || 'Recall'}</strong> ${x.firm || ''}</span><span class="hc-sub">${[x.reported_on ? `Reported ${recallDate(x.reported_on)}` : null, x.state].filter(Boolean).join(' · ')}</span></a></li>`)}</ul></section>` : ''}
-${raw(showcase.features({
-                title: 'Everything food',
+<ul class="home-cards short two">${recalls.latest.map((x) => html`<li><a href="/recalls/${x.recall_number}"><b>${x.product.length > 90 ? `${x.product.slice(0, 89).replace(/\s+\S*$/, '')}…` : x.product}</b><span class="hc-main"><strong>${x.classification || 'Recall'}</strong> ${x.firm || ''}</span><span class="hc-sub">${[x.reported_on ? `Reported ${recallDate(x.reported_on)}` : null, x.state].filter(Boolean).join(' · ')}</span></a></li>`)}</ul></section>` : ''}
+<details class="home-fold"><summary>Everything food<span>six tools, no account needed</span></summary>${raw(showcase.features({
                 lede: 'All working today: no card, no account needed to look around.',
                 items: [
                     { icon: 'ov:map', title: 'Food near you', text: 'Food banks, soup kitchens, community fridges and free pantry boxes, plus budget grocers, with hours.', href: '/near' },
@@ -193,15 +192,10 @@ ${raw(showcase.features({
                     { icon: 'ov:search', title: 'Delivery, compared', text: 'Search DoorDash, Uber Eats, Grubhub and more at once, and compare meal kits.', href: '/delivery' },
                     { icon: 'ov:ai', title: 'Recipes on a budget', text: 'Cheap recipes costed from the food list, and ideas from your cupboard. Written by AI: check before you cook.', href: '/recipes' },
                 ],
-            }))}
+            }))}</details>
 ${FAQ.length ? html`<section class="sc-sec" aria-labelledby="h-faq"><h2 id="h-faq">Questions people ask</h2>
 <div class="home-faq">${FAQ.map((f) => html`<details><summary>${f.question}</summary><p>${f.answer}</p></details>`)}</div></section>` : ''}
-${raw(showcase.network({ service: 'food' }))}
-${raw(showcase.cta({
-                title: 'Start where you are',
-                text: 'Search your town for a food bank, plan the next three days for what you can spend, or look up what is in the tin before you open it.',
-                actions: [{ label: 'Find food near you', href: '/near', primary: true }, { label: 'Plan meals', href: '/plan' }, { label: 'The food list', href: '/foods' }],
-            }))}`,
+${raw(showcase.network({ service: 'food' }))}`,
         });
     });
 
