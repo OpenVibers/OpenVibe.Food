@@ -91,7 +91,19 @@ function aiStub() {
             assert.strictEqual((await t.get('/recipes/library/beans-and-rice-1/review', { method: 'POST', as: boss, form: { yes: '1' }, headers: SAME })).status, 303);
             const reviewed = await t.get('/recipes/library/beans-and-rice-1');
             assert.match(reviewed.text, /<meta name="robots" content="index/);
-            assert.ok(reviewed.text.includes('"@type":"Recipe"') && reviewed.text.includes('checked this one'));
+            assert.ok(reviewed.text.includes('checked this one'));
+            // The node is the page: its title, the ingredients and steps it lists, and nothing the page does not have.
+            assert.strictEqual((reviewed.text.match(/application\/ld\+json/g) || []).length, 1, 'one JSON-LD script per page');
+            const recipe = [...reviewed.text.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+                .map((m) => JSON.parse(m[1])).find((x) => x['@type'] === 'Recipe');
+            assert.ok(recipe, 'no Recipe JSON-LD on a reviewed recipe');
+            assert.strictEqual(recipe.name, 'Beans and rice 1');
+            assert.strictEqual(recipe.url, 'https://openvibe.food/recipes/library/beans-and-rice-1');
+            assert.deepStrictEqual(recipe.recipeIngredient, ['2 cups Rice', '1 can Beans', '2 cups Water (or broth)']);
+            assert.deepStrictEqual(recipe.recipeInstructions.map((s) => s.text), ['Cook the rice.', 'Warm the beans.', 'Serve together.']);
+            assert.strictEqual(recipe.recipeYield, '4 servings');
+            assert.strictEqual(recipe.totalTime, 'PT25M');
+            assert.ok(!('image' in recipe), 'the recipe has no image, so none is claimed');
             assert.ok((await t.get('/sitemap.xml')).text.includes('/recipes/library/beans-and-rice-1</loc>'), 'a reviewed recipe is in the sitemap');
             await t.get('/recipes/library/beans-and-rice-1/hide', { method: 'POST', as: boss, form: {}, headers: SAME });
             assert.strictEqual((await t.get('/recipes/library/beans-and-rice-1')).status, 404);
