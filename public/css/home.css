@@ -39,7 +39,7 @@
 @media (prefers-reduced-motion: reduce) { .home-cards a { transition: none; } .home-cards a:hover { transform: none; } }
 
 /* Phones (2026-10-29): a taste and a door. Each card list shows its first four (recalls two); every one is a link away. */
-.home-fold { margin: 28px 0 0; border: 1px solid var(--border, #1f2d47); border-radius: 14px; background: var(--bg-card, #131c2e); }
+.home-fold { max-width: 1032px; margin: 28px auto 0; box-sizing: border-box; font-family: var(--ov-font, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); border: 1px solid var(--border, #1f2d47); border-radius: 14px; background: var(--bg-card, #131c2e); }
 .home-fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 0 16px; cursor: pointer; font-weight: 700; list-style: none; }
 .home-fold > summary::-webkit-details-marker { display: none; }
 .home-fold > summary span { color: var(--text-muted, #7386a3); font-weight: 600; font-size: .86rem; }
@@ -47,4 +47,12 @@
 .home-fold .sc-sec { margin: 0; padding: 0 16px 14px; }
 @media (max-width: 599px) {
   .home-cards.short > li:nth-child(n+5), .home-cards.short.two > li:nth-child(n+3) { display: none; }
+  .home-cards.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* The figures are one strip that scrolls sideways, not a screen of tiles. */
+  .home-stats { display: flex; overflow-x: auto; scrollbar-width: none; gap: 8px; margin-left: -16px; margin-right: -16px; padding: 0 16px 2px; }
+  .home-stats::-webkit-scrollbar { display: none; }
+  .home-stats li { flex: 0 0 auto; width: 136px; }
+  .home-stats a { padding: 10px 12px; }
+  .home-stats b { font-size: 1.3rem; }
+  .home-stats span { font-size: .8rem; }
 }
