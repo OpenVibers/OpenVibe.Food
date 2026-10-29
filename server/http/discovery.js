@@ -77,7 +77,8 @@ function createDiscoveryRoutes(ctx) {
     r.get('/robots.txt', (_req, res) => {
         res.type('text/plain').set('Cache-Control', TEXT).send(
             '# openvibe.food: the public pages are for search and AI crawlers; sign-in, the API and anything personal are not.\n'
-            + seo.robotsTxt({ sitemaps: [abs('/sitemap.xml')], disallow: DISALLOW }));
+            + seo.robotsTxt({ sitemaps: [abs('/sitemap.xml')], disallow: DISALLOW })
+            + `# Agent manifest: ${abs('/.well-known/agent.json')}\n`);
     });
 
     r.get('/llms.txt', (_req, res) => {
