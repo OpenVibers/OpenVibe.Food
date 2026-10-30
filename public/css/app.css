@@ -71,8 +71,8 @@ button.sc-btn.sc-primary { border: 0; }
 .food-search-note { margin: -4px 0 0; font-size: .8rem; color: var(--text-muted, #7386a3); text-align: center; }
 
 
-/* 10 touch targets (2026-10-29): place chips, the search select and its button are at least 44 px tall. */
+/* 11 touch targets (2026-10-29): place chips and every field of the search are at least 44 px tall. */
 @media (pointer: coarse) {
   .home-chips a { min-height: 44px; align-items: center; }
-  .food-search .food-field select, .food-search > .sc-btn { height: auto; min-height: 44px; }
+  .food-search .food-field input, .food-search .food-field select, .food-search > .sc-btn { height: auto; min-height: 44px; }
 }
