@@ -597,6 +597,7 @@ ${list.length ? sections : notice('Nothing matched. Try a shorter word.', 'warn'
     r.get('/foods/:slug', (req, res) => {
         const f = foods.getFood(req.params.slug);
         const official = f && ctx.officialPrices ? ctx.officialPrices.forFood(f.slug) : null;
+        const off = f && ctx.off ? ctx.off.forFood(f.slug) : null;
         if (!f) return page(req, res, {
             title: 'No such food', crumbs: [{ label: 'Food list', href: '/foods' }, { label: 'Not found' }],
             body: html`<h1>No such food</h1><p>Nothing in the list is called “${String(req.params.slug).slice(0, 64)}”. <a href="/foods">See the whole list</a>.</p>`,
@@ -623,6 +624,19 @@ ${table(['Store', 'A pack'], f.prices.map((p) => [p.store_name, money(p.price)])
 ${official ? html`<h2>US average price</h2>
 <p><b>${money(official.pack_price)}</b> for this pack at the US city average for ${official.month}: ${money(official.value)} per ${official.unit} of ${official.item.charAt(0).toLowerCase() + official.item.slice(1)} (<a href="${official.url}" rel="noopener">BLS series ${official.series_id}</a>).</p>
 <p class="muted small">${OFFICIAL_NOTE}</p>` : ''}
+${off ? html`<h2>Open Food Facts label</h2>
+<p><b>${off.name}</b>${off.brands ? html` · ${off.brands}` : ''}${off.nutriscore_grade ? html` · Nutri-Score ${off.nutriscore_grade}` : ''}</p>
+${table(['Per 100 g', 'As the label states'], [
+                ['Energy', off.per_100g.energy_kcal == null ? '—' : `${off.per_100g.energy_kcal} kcal`],
+                ['Fat', off.per_100g.fat_g == null ? '—' : `${off.per_100g.fat_g} g`],
+                ['of which saturates', off.per_100g.saturated_fat_g == null ? '—' : `${off.per_100g.saturated_fat_g} g`],
+                ['Carbohydrate', off.per_100g.carbs_g == null ? '—' : `${off.per_100g.carbs_g} g`],
+                ['of which sugars', off.per_100g.sugars_g == null ? '—' : `${off.per_100g.sugars_g} g`],
+                ['Protein', off.per_100g.protein_g == null ? '—' : `${off.per_100g.protein_g} g`],
+                ['Salt', off.per_100g.salt_g == null ? '—' : `${off.per_100g.salt_g} g`],
+                ['Fibre', off.per_100g.fiber_g == null ? '—' : `${off.per_100g.fiber_g} g`],
+            ])}
+<p class="muted small"><a href="${off.url}" rel="noopener">Open Food Facts (ODbL)</a> · product ${off.code}${off.retrieved_at ? html`, read ${time(off.retrieved_at)}` : ''}. ${off.note} These are the product's own label figures, shown beside the typical values above and not replacing them.</p>` : ''}
 ${f.tags.length ? html`<p class="tags">${f.tags.map((t) => badge(t))}</p>` : ''}
 <p><a href="/plan?people=2&days=3">Plan meals with this</a> · <a href="/foods">Back to the list</a></p>`,
         });

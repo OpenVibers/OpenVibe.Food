@@ -98,6 +98,8 @@ async function createApp(opts = {}) {
     ctx.recalls = require('./food/recalls').createRecalls({ config, s, fetchImpl, log, source: opts.recallSource || null });
     // BLS's US average prices for list items, from OpenVibe.Sources (server/food/official-prices.js); a test passes opts.priceSource.
     ctx.officialPrices = require('./food/official-prices').createOfficialPrices({ config, s, fetchImpl, log, source: opts.priceSource || null });
+    // Open Food Facts products as label data beside the list, from OpenVibe.Sources (server/food/off.js); opts.offSource.
+    ctx.off = require('./food/off').createOff({ config, s, fetchImpl, log, source: opts.offSource || null });
 
     const app = express();
     app.disable('x-powered-by');

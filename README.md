@@ -61,6 +61,10 @@ Its own PostgreSQL tables, created by [migrations/](migrations/) and written by 
 - `food_recalls`, `food_ingest_cursor` (0009) — the FDA's food recall reports as OpenVibe.Sources holds them, one row
   per recall number, and the cursor in Sources' change feed. Public domain data; nothing about a person.
 
+- `food_off_products` (0011) — Open Food Facts products matched to the list, one row per product code with the label
+  figures, the food slug they label and the Sources item and revision they came from. ODbL data, credited on the food
+  page; nothing about a person ([migrations/0011_open_food_facts.sql](migrations/0011_open_food_facts.sql)).
+
 0001 creates no tables. The service is the authority for these rows and for nothing else.
 
 ## Does not own
@@ -162,6 +166,12 @@ an item's page also shows BLS's US city average for the newest month and that fi
 published average-price file once a day (source `bls-average-prices`) and Food follows its change feed into
 `food_official_prices`. BLS is cited with its note that it cannot vouch for data once they leave BLS.gov. The list's
 own band stays as it is.
+
+**Open Food Facts labels** — Open Food Facts' daily product export (ODbL), read by OpenVibe.Sources as a streamed
+bulk dataset (source `open-food-facts`), is matched by product name to the 42 foods on the list. A food's page shows
+the most complete matching product's per-100 g figures, its Nutri-Score and a link to the product, in a separate
+section credited "Open Food Facts (ODbL)" ([server/food/off.js](server/food/off.js), `food_off_products`), beside
+the list's own nutrition and prices and never replacing them.
 
 **Nutrition** — the same source's typical values per serving. "Per 100 g" is arithmetic on the pack size stated in an
 item's own name divided by its servings (for example a 15 oz can with 3.5 servings is 121 g a serving). Where a name
