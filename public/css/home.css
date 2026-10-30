@@ -46,7 +46,11 @@
 .home-fold > summary:focus-visible { outline: 2px solid var(--accent, #3b82f6); outline-offset: -2px; border-radius: 14px; }
 .home-fold .sc-sec { margin: 0; padding: 0 16px 14px; }
 @media (max-width: 599px) {
-  .home-cards.short > li:nth-child(n+5), .home-cards.short.two > li:nth-child(n+3) { display: none; }
+  /* Third pass: the short lists are one sideways row each, every card in it (they were cut to four, recalls to two). */
+  .home-cards.short { display: flex; flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; scrollbar-width: none; gap: 10px; margin-left: -16px; margin-right: -16px; padding: 0 16px 4px; }
+  .home-cards.short::-webkit-scrollbar { display: none; }
+  .home-cards.short > li { flex: 0 0 46%; min-width: 0; scroll-snap-align: start; }
+  .home-cards.short.five > li, .home-cards.short.two > li { flex-basis: 80%; }
   .home-cards.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* The figures are one strip that scrolls sideways, not a screen of tiles. */
   .home-stats { display: flex; overflow-x: auto; scrollbar-width: none; gap: 8px; margin-left: -16px; margin-right: -16px; padding: 0 16px 2px; }
