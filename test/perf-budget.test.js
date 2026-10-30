@@ -26,7 +26,7 @@ const BUDGETS = {
     // 16.4 since the product's own pages brought their stylesheet with them (the search and plan forms, the place
     // cards, the pantry's tick list); app.css itself stayed within a few lines.
     cssRawKB: 39,   // 38.3 the home's phone rows (2026-10-29); 33.6 openvibe-shared 4.26.1 (hero visual); 28.1 with Shared 4.13.0 (2026-10-26: account links); 22.2 with css/home.css; 16.4 before
-    cssBrotliKB: 8.5,   // 8.2 the home's phone limits and fold (2026-10-29); 6.4 with Shared 4.13.0 (2026-10-26: account links); 5.3 with css/home.css; 4.3 with the hero search panel
+    cssBrotliKB: 8.6,   // 8.6 with 11 touch targets (2026-10-29: the chips and the food search's fields at 44 px); 8.2 the home's phone limits and fold (2026-10-29); 6.4 with Shared 4.13.0 (2026-10-26: account links); 5.3 with css/home.css; 4.3 with the hero search panel
     externalFiles: 0,   // 0
 };
 
