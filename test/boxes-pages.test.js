@@ -43,6 +43,22 @@ const { boot } = require('./helpers/boot');
         assert.doesNotMatch(r.text, /What it comes to/, 'and nothing worked out');
         assert.strictEqual((await t.get('/boxes/nope')).status, 404);
 
+        // ── A price the service's own terms do not allow us to read (HelloFresh): the page says why, in one line,
+        //    instead of "not checked yet" ──
+        r = await t.get('/boxes/hellofresh');
+        assert.strictEqual(r.status, 200);
+        assert.match(r.text, /HelloFresh shows its plan prices only after a postcode is entered/, 'the page says why there is no price');
+        assert.match(r.text, /hellofresh\.com\/about\/termsandconditions/, 'and names the terms it may not read under');
+        assert.match(r.text, /Its plans page was read on 2026-11-01/, 'and the day that page was read');
+        assert.doesNotMatch(r.text, /Not checked yet/, 'no bare "not checked yet" where a reason is known');
+        assert.strictEqual((r.text.match(/>Not read</g) || []).length, 2, 'the price and the shipping both say they were not read');
+        r = await t.get('/boxes/compare?b=everyplate,hellofresh');
+        assert.match(r.text, />Not read</, 'the comparison says it too');
+        assert.match(r.text, /Plans from \$5\.99 a serving/, 'and the boxes that do state a price keep it');
+        const hf = (await t.get('/api/v1/boxes/hellofresh')).json().box;
+        assert.strictEqual(hf.price, null, 'no price is invented');
+        assert.match(hf.unreadable, /postcode/, 'the API says why too');
+
         // ── Side by side ──
         r = await t.get('/boxes/compare?b=everyplate,hellofresh,nope');
         assert.match(r.text, /<a href="\/boxes\/everyplate">EveryPlate<\/a>/);

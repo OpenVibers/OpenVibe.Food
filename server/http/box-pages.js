@@ -75,8 +75,8 @@ ${list.length ? k(kit.list(list.map(row))) : k(kit.empty({ icon: 'search', title
         }
         const rows = [
             ['Kind', (b) => boxes.KIND[b.kind].name],
-            ['Price, as stated', (b) => (b.price ? b.price.text : 'Not checked yet')],
-            ['Shipping', (b) => (b.shipping ? b.shipping.text : 'Not checked yet')],
+            ['Price, as stated', (b) => (b.price ? b.price.text : (b.unreadable ? 'Not read' : 'Not checked yet'))],
+            ['Shipping', (b) => (b.shipping ? b.shipping.text : (b.unreadable ? 'Not read' : 'Not checked yet'))],
             ['People', (b) => span(b.people) || '—'],
             ['Meals a week', (b) => span(b.meals) || '—'],
             ['How often', (b) => b.cadence.join(', ') || '—'],
@@ -107,7 +107,8 @@ ${picked.length ? html`<div class="bx-compare" role="region" aria-label="The box
         const links = boxLinks ? await boxLinks.forBox(b) : { coupons: null, reviews: null };
         const head = kit.head({ title: b.name, subHtml: String(html`${kind.name} · <a href="${b.url}" rel="noopener nofollow">${b.host}</a>`), back: { href: `/boxes?kind=${b.kind}`, label: kind.name },
             actions: [kit.iconButton({ href: watchHref(b), icon: 'bell', label: `Watch ${b.name}'s prices on OpenVibe.Watch` }), kit.iconButton({ href: b.url, icon: 'open', label: `${b.name}'s site`, attrs: { rel: 'noopener nofollow' } })] });
-        const fact = (label, value) => html`<div class="ovk-set-row bx-fact"><span class="ovk-set-text">${label}</span><span class="bx-val">${value || html`<span class="muted">Not checked yet</span>`}</span></div>`;
+        // A fact nobody read says so; a fact the service's own terms do not allow us to read says that instead.
+        const fact = (label, value, unreadable) => html`<div class="ovk-set-row bx-fact"><span class="ovk-set-text">${label}</span><span class="bx-val">${value || (unreadable ? html`<span class="muted">Not read</span>` : html`<span class="muted">Not checked yet</span>`)}</span></div>`;
         const opt = (list, cur) => list.map((n) => html`<option value="${n}"${n === cur ? raw(' selected') : ''}>${n}</option>`);
         const sizes = (b.people.length ? b.people : [1, 2, 3, 4, 5, 6]);
         const weekly = (b.meals.length ? b.meals : [2, 3, 4, 5, 6, 7]);
@@ -125,20 +126,21 @@ ${c ? html`<p class="bx-cost"><strong>${range(c.total) || range(c.food)}</strong
         const others = boxes.list({ kind: b.kind }).filter((x) => x !== b).slice(0, 4);
         page(req, res, {
             title: `${b.name}: ${kind.name.toLowerCase()} compared`,
-            description: `${b.name}: ${b.what} ${b.price ? `${b.price.text}. ` : ''}Plan sizes, shipping, diets and how to cancel, from its own pages, with codes and reviews.`.slice(0, 300),
+            description: `${b.name}: ${b.what} ${b.price ? `${b.price.text}. ` : (b.unreadable ? 'No price is listed: it cannot be read under the service\'s terms. ' : '')}Plan sizes, shipping, diets and how to cancel, from its own pages, with codes and reviews.`.slice(0, 300),
             index: !req.query.people && !req.query.meals, cache: signedIn(req) ? null : cache.htmlHeaders({ maxAge: 300 }), crumbs: [], styles: ['kit.css'], localStyles: ['css/boxes.css'],
             body: html`${k(head)}
 <p class="bx-what">${b.what}</p>
 ${b.price ? html`<p class="bx-price"><strong>${boxes.priceLine(b.price)}</strong>${b.shipping && b.shipping.amount === 0 ? ' · free shipping' : ''}</p>` : ''}
 <section class="ovk-section" aria-labelledby="bx-facts-h"><h2 id="bx-facts-h">The plans</h2>
-${fact('Price', b.price ? b.price.text : null)}
-${fact('Shipping', b.shipping ? b.shipping.text : null)}
+${fact('Price', b.price ? b.price.text : null, b.unreadable)}
+${fact('Shipping', b.shipping ? b.shipping.text : null, b.unreadable)}
 ${fact('People', span(b.people))}
 ${fact('Meals a week', span(b.meals))}
 ${fact('How often', b.cadence.join(', '))}
 ${fact('Diets', b.diets.length ? b.diets.map((d) => boxes.DIETS[d]).join(', ') : null)}
 ${fact('Delivers to', b.ships_to)}
 ${fact('Skip and cancel', b.cancel)}
+${b.unreadable ? html`<p class="ovk-note bx-unreadable">${b.unreadable}</p>` : ''}
 ${b.notes.length ? html`<ul class="ovk-note bx-notes">${b.notes.map((n) => html`<li>${n}</li>`)}</ul>` : ''}
 <p class="ovk-note">${b.sources.length ? html`From ${b.name}'s own pages, read ${b.checked}: ${b.sources.map((s, i) => html`${i ? ', ' : ''}<a href="${s}" rel="noopener nofollow">${s.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)}</a>`)}.` : html`Nothing checked yet beyond what it is; its plans are on <a href="${b.url}" rel="noopener nofollow">its site</a>.`}</p></section>
 ${calc}
