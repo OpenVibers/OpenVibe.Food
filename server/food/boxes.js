@@ -8,7 +8,8 @@
  * How it is filled, the permitted way (2026-09-28, Q8: official links, a person's own session, licensed data; never
  * scraping): each fact below was read on the service's own public page, by a person, and carries that page and the
  * day it was read. Nothing here is fetched from the services. A fact nobody checked is null and the page says "not
- * checked yet" with the link to their site; a price that changes is the service's to show, and OpenVibe.Watch can
+ * checked yet" with the link to their site; a fact the service's own terms do not allow us to read is null too, and
+ * the page says so in one line instead; a price that changes is the service's to show, and OpenVibe.Watch can
  * tell you when it does. Codes come from OpenVibe.Coupons and scores from OpenVibe.Reviews at request time
  * (./box-links.js); a box never claims either.
  *
@@ -24,6 +25,8 @@
  *          cancel, notes[], sources[], checked }
  *   price     { from, to, unit: 'serving'|'meal'|'box'|'month'|'delivery'|'day'|'membership', text } or null
  *   shipping  { amount, to, text } or null (amount 0: free)
+ *   unreadable  why a price is not listed, when the service's own terms do not allow it to be read (the page says it
+ *               in one line instead of "not checked yet"); null for every box whose facts were read
  */
 
 const CHECKED = '2026-10-28';
@@ -45,7 +48,7 @@ const DIETS = {
     'calorie-smart': 'Calorie-smart', 'high-protein': 'High-protein', family: 'Family', quick: 'Quick', 'plant-based': 'Plant-based',
 };
 
-const box = (o) => ({ cadence: [], people: [], meals: [], diets: [], price: null, shipping: null, ships_to: null, cancel: null, notes: [], sources: [], checked: CHECKED, ...o });
+const box = (o) => ({ cadence: [], people: [], meals: [], diets: [], price: null, shipping: null, ships_to: null, cancel: null, notes: [], sources: [], checked: CHECKED, unreadable: null, ...o });
 
 const BOXES = [
     // ── Meal kits ──
@@ -58,6 +61,10 @@ const BOXES = [
         cadence: ['weekly'], people: [2, 4], meals: [3, 4, 5], diets: ['vegetarian', 'pescatarian', 'calorie-smart', 'gluten-free', 'keto', 'family'],
         ships_to: 'The whole US except Alaska and Hawaii', cancel: 'No commitment: pause or cancel by 11:59 pm PT five days before the next delivery',
         notes: ['5 recipes a week are for the two-person plan only.', 'Gluten-free and keto are options within the plans, not plans of their own.'],
+        // Its plans page (hellofresh.com/plans) asks for a postcode and shows no price without one, and its terms
+        // (hellofresh.com/about/termsandconditions, 16.8/16.9/18/19(9)) allow nobody to copy its pages: the price and
+        // the delivery cannot be read under them, so the page says so instead of "not checked yet".
+        unreadable: 'HelloFresh shows its plan prices only after a postcode is entered, and its terms (hellofresh.com/about/termsandconditions) let nobody copy its pages, so no price or delivery figure is listed here. Its plans page was read on 2026-11-01.',
         sources: ['https://www.hellofresh.com/', 'https://www.hellofresh.com/eat/kid-friendly-meal-delivery', 'https://www.hellofresh.com/eat/healthy-meal-delivery'] }),
     box({ slug: 'home-chef', name: 'Home Chef', kind: 'cook', host: 'homechef.com', url: 'https://www.homechef.com/', what: 'Kits plus oven-ready and fast-prep meals; meals can be customized.',
         cadence: ['weekly'], price: { from: 6.99, to: null, unit: 'serving', text: 'Meals from $6.99 a serving' },
@@ -204,6 +211,8 @@ function toWire(b) {
         slug: b.slug, name: b.name, kind: b.kind, kind_name: KIND[b.kind].name, url: b.url, host: b.host, what: b.what,
         cadence: b.cadence, people: b.people, meals_per_week: b.meals, diets: b.diets,
         price: b.price ? { ...b.price, line: priceLine(b.price) } : null, shipping: b.shipping, ships_to: b.ships_to, cancel: b.cancel, notes: b.notes,
+        // Why a price is missing, when the service's own terms do not allow it to be read (null for every other box).
+        unreadable: b.unreadable || null,
         sources: b.sources, checked: b.sources.length ? b.checked : null,
         links: { page: `https://openvibe.food/boxes/${b.slug}`, coupons: `https://openvibe.coupons/?q=${encodeURIComponent(b.host)}`, reviews: `https://openvibe.reviews/search?q=${encodeURIComponent(b.name)}` },
     };
