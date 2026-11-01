@@ -5,10 +5,19 @@
  * by tier with their plans pages and a Watch link; Food never fetches the apps; the home and the navbar link it.
  */
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const { boot, check, done } = require('./helpers/boot');
 const delivery = require('../server/food/delivery');
 
+const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'delivery.css'), 'utf8');
+
 (async () => {
+    await check('the budget tier reads on white; no colour mix left in its text', () => {
+        assert.ok(css.includes('.dv-budget { color: var(--success-text, #15803d); border-color: rgba(74, 222, 128, .45); }'), 'the budget tier uses the success text token');
+        assert.ok(!/\.dv-budget \{[^}]*color-mix/.test(css), 'the budget tier text is not a mix');
+    });
+
     await check('one query, every app\'s own search, encoded; nothing for an empty query', () => {
         const links = delivery.linksFor('  pad thai & spring rolls ');
         assert.deepStrictEqual(links.map((l) => l.id), ['doordash', 'ubereats', 'grubhub', 'seamless', 'caviar', 'instacart']);
