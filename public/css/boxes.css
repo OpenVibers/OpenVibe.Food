@@ -2,7 +2,7 @@
    price as its headline, its facts as rows, what it comes to, its links across OpenVibe, and boxes side by side. */
 .bx-diets { display: flex; gap: 6px; margin: 0 -16px 12px; padding: 0 16px; overflow-x: auto; scrollbar-width: none; }
 .bx-diets::-webkit-scrollbar { display: none; }
-.bx-diets a { flex: none; display: inline-flex; align-items: center; min-height: 34px; padding: 5px 13px; border-radius: 999px; border: 1px solid var(--border, rgba(255, 255, 255, .12)); color: var(--text-secondary, #b6c2d4); font-size: .88rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.bx-diets a { flex: none; display: inline-flex; align-items: center; min-height: 34px; padding: 5px 13px; border-radius: 999px; border: 1px solid var(--border, color-mix(in srgb, var(--text-primary, #fff) 12%, transparent)); color: var(--text-secondary, #b6c2d4); font-size: .88rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
 .bx-diets a:hover { border-color: var(--accent, #3b82f6); }
 .bx-diets a[aria-current="page"] { background: color-mix(in srgb, var(--accent, #3b82f6) 16%, transparent); border-color: color-mix(in srgb, var(--accent, #3b82f6) 55%, transparent); color: var(--text-primary, #e8ecf3); }
 .bx-how { margin: 14px 0 0; }
@@ -13,7 +13,7 @@
 .bx-val { flex: 0 1 58%; text-align: right; font-size: .94rem; }
 .bx-notes { margin: 0; padding: 4px 14px 8px 30px; }
 .bx-link { color: inherit; text-decoration: none; }
-.bx-link:hover { background: var(--bg-hover, rgba(255, 255, 255, .04)); }
+.bx-link:hover { background: var(--bg-hover, color-mix(in srgb, var(--text-primary, #fff) 4%, transparent)); }
 .bx-link .ovk-i { color: var(--text-muted, #93a0b4); }
 .bx-calc { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding: 4px 14px 10px; }
 .bx-calc label { display: grid; gap: 4px; color: var(--text-muted, #93a0b4); font-size: .86rem; }
@@ -24,7 +24,7 @@
 .bx-pick select { flex: 1 1 220px; min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--border, rgba(255, 255, 255, .12)); background: var(--bg-input, #0f1522); color: var(--text-primary, #e8ecf3); font: inherit; }
 .bx-compare { overflow-x: auto; margin: 0 -16px 10px; padding: 0 16px; }
 .bx-compare table { border-collapse: separate; border-spacing: 0; min-width: 100%; font-size: .9rem; }
-.bx-compare th, .bx-compare td { padding: 9px 12px; border-bottom: 1px solid var(--border, rgba(255, 255, 255, .1)); text-align: left; vertical-align: top; min-width: 150px; }
+.bx-compare th, .bx-compare td { padding: 9px 12px; border-bottom: 1px solid var(--border, color-mix(in srgb, var(--text-primary, #fff) 10%, transparent)); text-align: left; vertical-align: top; min-width: 150px; }
 .bx-compare thead th { position: sticky; top: 0; background: var(--bg-card, #121826); font-size: 1rem; }
 .bx-compare tbody th { color: var(--text-muted, #93a0b4); font-weight: 600; min-width: 110px; position: sticky; left: 0; background: var(--bg-primary, #0b0f17); }
 .bx-x { margin-left: 6px; color: var(--text-muted, #93a0b4); text-decoration: none; }
