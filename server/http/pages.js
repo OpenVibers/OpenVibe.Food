@@ -328,7 +328,7 @@ ${table(['Item', 'Packs', 'Where', 'Cost'], plan.shopping_list.map((i) => [html`
 ${plan.menu.map((d) => html`<section class="plan-day"><h3>Day ${d.day}</h3>
 <ul>${[['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['dinner', 'Dinner'], ['snack', 'Snack']].map(([slot, label]) => html`<li><b>${label}:</b> ${d[slot].join(', ') || '—'}</li>`)}</ul></section>`)}
 <h2>Food groups</h2>
-${table(['Group', 'A day, at least', 'In the plan', 'Cost'], plan.group_coverage.map((g) => [g.name, `${g.daily_min_g} g`, g.covered ? `${g.items} items, ${g.packs} packs` : '—', money(g.cost)]))}
+${table(['Group', 'A day, at least', 'In the plan', 'Cost'], plan.group_coverage.map((g) => [g.name, `${g.daily_min_g} g`, g.covered ? `${g.items} item${g.items === 1 ? '' : 's'}, ${g.packs} pack${g.packs === 1 ? '' : 's'}` : '—', money(g.cost)]))}
 ${plan.notes.map((n) => html`<p class="muted small">${n}</p>`)}`;
     }
 
