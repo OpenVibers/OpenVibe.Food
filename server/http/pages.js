@@ -25,7 +25,7 @@ const { asyncRouter } = require('./router');
 const { createDiscoveryRoutes, homeJsonLd } = require('./discovery');
 const { sameOrigin } = require('./principal');
 const { html, raw, table, notice, time, badge } = require('../render/html');
-const { pickBlock, pickRules, foldBlock } = require('../render/short');
+const { pickBlock, foldBlock } = require('../render/short');
 const { markdown } = require('../render/markdown');
 const { send } = require('../render/layout');
 const foods = require('../food/foods');
@@ -145,9 +145,8 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
             { value: delivery.KITS.length, label: 'meal kits side by side', href: '/delivery#kits' },
             { value: recalls.total, label: 'FDA food recalls, newest first', href: '/recalls' },
         ].filter((x) => x.value);
-        // The home's blocks of the same kind (the owner's short-pages rule, 2026-10-30): on a phone a row of chips
-        // picks one block at a time, so the home stays a couple of screens tall. Every block stays in the page for
-        // crawlers, and a wider screen shows them all, one under the other, as before.
+        // The home's blocks of the same kind: every block is shown, stacked, each with its own heading; the chips
+        // are links that jump to a block (the owner's rule, 2026-10-31: never hide content to shorten).
         const panes = [];
         if (lib.cheap.length) panes.push({
             id: 'meals', label: 'Cheap meals',
@@ -209,8 +208,6 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
                 FAQ.length ? seo.jsonLd.faq(FAQ.map((f) => ({ q: f.question, a: f.answer }))) : null,
             ],
             styles: [showcase.STYLESHEET], localStyles: ['css/home.css'],
-            // The rule that shows the picked block: one per block of the pick block, written for this page.
-            inlineStyles: [`@supports selector(:has(*)){@media (max-width:640px){${pickRules('food', panes.map((p) => p.id))}}}`],
             body: html`${raw(hero)}
 ${stats.length ? html`<ul class="home-stats" aria-label="${SITE_NAME} in numbers">${stats.map((x) => html`<li><a href="${x.href}"><b>${x.value}</b><span>${x.label}</span></a></li>`)}</ul>` : ''}
 ${raw(pickBlock({ key: 'food', label: 'What to eat, and what it costs', head: 'What to eat, and what it costs', panes }))}

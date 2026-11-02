@@ -1,8 +1,8 @@
 'use strict';
 /**
- * The home on a phone (the owner's short-pages rule, 2026-10-30): the home's blocks of the same kind are one pick
- * block, a row of chips picks one of them, and the parts a reader rarely needs are folds. Radio inputs and :has(),
- * no script for the chips; every block stays in the page for crawlers; a wider screen shows them all and no chips.
+ * The home on a phone (the owner's rule, 2026-10-31: never hide content to shorten): the home's blocks of the same
+ * kind are one pick block, every block is shown, stacked, with its own heading, and the chips are a row of links that
+ * jump to a block. The parts a reader rarely needs are folds.
  */
 const assert = require('assert');
 const { boot, check, done } = require('./helpers/boot');
@@ -10,32 +10,38 @@ const { boot, check, done } = require('./helpers/boot');
 (async () => {
     const t = await boot();
     try {
-        await check('the home is one pick block: a chip per block, the first picked, every block in the page', async () => {
+        await check('the home is one pick block: a link per block, every block in the page and showing', async () => {
             const r = await t.get('/');
             assert.strictEqual(r.status, 200, r.text);
             const page = r.text;
             const block = page.slice(page.indexOf('<div class="pick" id="pick-food">'), page.indexOf('<details class="home-fold"><summary>Everything food'));
             assert.ok(block.startsWith('<div class="pick" id="pick-food">'), 'the pick block is on the home');
-            assert.match(block, /<div class="pick-row" role="radiogroup" aria-label="What to eat, and what it costs">/);
-            const chips = [...block.matchAll(/<input type="radio" name="pick-food" id="pk-food-([a-z]+)" value="\1"( checked)?><label for="pk-food-\1">([^<]+)<\/label>/g)];
-            assert.ok(chips.length >= 6, `a chip per block (${chips.length})`);
-            assert.deepStrictEqual(chips.filter((m) => m[2]).map((m) => m[1]), [chips[0][1]], 'the first block is picked');
-            // Every block stays in the page, with its heading.
+            assert.ok(!/<input type="radio"/.test(block), 'no radio in the pick block');
+            assert.match(block, /<nav class="pick-row" aria-label="What to eat, and what it costs">/);
+            const chips = [...block.matchAll(/<a class="pick-chip" href="#(pp-food-[a-z]+)">[^<]+<\/a>/g)];
+            assert.ok(chips.length >= 6, `a link per block (${chips.length})`);
+            // Every block stays in the page, with its heading, and every link points at one of them.
             for (const h of ['The most food for a dollar', 'The cheapest protein', 'Browse the food list', 'Every delivery app at once', 'Meal kits, side by side', 'Find a food bank']) {
                 assert.ok(block.includes(h), `the block "${h}" is in the page`);
             }
-            assert.strictEqual((block.match(/<div class="pick-pane"/g) || []).length, chips.length, 'one pane per chip');
+            const panes = [...block.matchAll(/<div class="pick-pane" id="(pp-food-[a-z]+)">/g)].map((m) => m[1]);
+            assert.strictEqual(panes.length, chips.length, 'one pane per link');
+            assert.deepStrictEqual(panes, chips.map((m) => m[1]), 'every link points at a pane in the page');
         });
 
-        await check('the CSS guard: the chips are hidden and the blocks all show until 640 px and where :has() is understood', async () => {
+        await check('the CSS shows every pane on a phone; the chips are links, not a picker', async () => {
             const r = await t.get('/');
             const page = r.text;
-            assert.match(page, /<style>@supports selector\(:has\(\*\)\)\{@media \(max-width:640px\)\{\.pick:has\(#pk-food-value:checked\) #pp-food-value\{display:block\}/, 'the rule that shows the picked block');
+            assert.ok(!page.includes('.pick:has('), 'no inline rule picks a block');
+            assert.ok(!page.includes('pk-food'), 'no radio ids on the page');
             const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'css', 'home.css'), 'utf8');
-            assert.match(css, /\.pick-row \{ display: none; \}/, 'the chips are hidden by default');
-            assert.match(css, /@supports selector\(:has\(\*\)\) \{ @media \(max-width: 640px\) \{/, 'the phone rules are under :has() and 640 px');
-            assert.match(css, /\.pick-row label \{[^}]*min-height: 44px/, 'a chip is a 44 px target');
-            assert.match(css, /\.pick-pane \{ display: none; \}/, 'the blocks are hidden on a phone');
+            assert.match(css, /\.pick-head, \.pick-row \{ display: none; \}/, 'the chips are hidden by default');
+            assert.match(css, /@media \(max-width: 640px\) \{/, 'the phone rules are under 640 px');
+            assert.match(css, /\.pick-row \{ display: flex/, 'the chips are a row on a phone');
+            assert.match(css, /\.pick-chip \{[^}]*min-height: 44px/, 'a chip is a 44 px link target');
+            assert.ok(!/\.pick[^{}]*\.pick-pane[^{}]*\{[^}]*display:\s*none/.test(css), 'no rule hides a pane');
+            assert.ok(!/\.pick[^{}]*:target/.test(css), 'no :target pane rule');
+            assert.ok(!/\.pick[^{}]*\.pick-pane[^{}]*h2[^{}]*\{[^}]*display:\s*none/.test(css), 'a pane keeps its heading on a phone');
         });
 
         await check('the parts a reader rarely needs are folds, open in the page and closed on a phone', async () => {
