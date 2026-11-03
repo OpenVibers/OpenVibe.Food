@@ -27,7 +27,8 @@ const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 // The product's own places: the main ones carry an icon (phones get them as the bottom tab bar), the rest fold into
 // the navbar's More (Shared 4.22). Search is the navbar's magnifier and What shipped is the footer's.
 const NAV = [
-    { label: 'Food near you', href: '/near', icon: 'fa-location-dot' },
+    // 'Near you': a phone's bottom tab fits about ten letters, and 'Food near you' read 'Food near …' (11-03).
+    { label: 'Near you', href: '/near', icon: 'fa-location-dot' },
     { label: 'Meal plan', href: '/plan', icon: 'fa-list-check' },
     { label: 'Food boxes', href: '/boxes', icon: 'fa-utensils' },
     { label: 'Recipes', href: '/recipes', icon: 'fa-book' },
