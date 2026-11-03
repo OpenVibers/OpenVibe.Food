@@ -3,6 +3,7 @@
 // Every field is something this host really serves: the public pages (food near you, the meal planner, the food
 // list and one food, recalls, the recipe library, the update log), the JSON API under /api/v1, llms.txt and the
 // sitemap. No OpenAPI document or MCP endpoint is published here, so none is named.
+// 11-03 (SEO-3): this site serves /openapi.json now (the contracts' document for it), so it is named below.
 module.exports = {
     id: 'food',
     name: 'OpenVibe.Food',
@@ -10,6 +11,7 @@ module.exports = {
     home: 'https://openvibe.food',
     site: 'openvibe.food',
     api: '/api/v1',
+    openapi: '/openapi.json',
     policy: {
         auth: ['none', 'Network OIDC'],
         rateLimit: 'Pages and /api/v1 are limited per address to 300 and 240 requests a minute; the place search is limited per caller to 10 requests a minute and 120 an hour (its answers are cached for a week)',
