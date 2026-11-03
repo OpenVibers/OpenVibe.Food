@@ -98,12 +98,12 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'Recipe library', url: abs('/recipes/library'), note: 'budget recipes written by OpenVibe.AI from the food list, each with what to buy and its typical cost; a recipe a person checked is marked so' },
                     { title: 'What shipped on OpenVibe.Food', url: abs('/updates') },
                 ] },
+                { title: 'API', links: [{ title: 'The API', url: abs('/api/v1/foods'), note: 'JSON: places, foods, plans, pantry' }] },
             ],
             optional: [
                 { title: 'Sitemap', url: abs('/sitemap.xml') },
                 { title: 'Full text for language models', url: abs('/llms-full.txt') },
                 { title: 'Release metadata (JSON)', url: abs('/release.json') },
-                { title: 'The API', url: abs('/api/v1/foods'), note: 'JSON: places, foods, plans, pantry' },
                 { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts, apps and grants' },
                 { title: 'OpenVibe.Services', url: 'https://openvibe.services', note: 'apps, keys and capability grants' },
                 { title: 'OpenStreetMap', url: 'https://www.openstreetmap.org/copyright', note: 'the place data, © contributors, ODbL' },
