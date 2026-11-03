@@ -117,7 +117,7 @@ function feed(items) {
             assert.ok(map.text.includes('https://openvibe.food/recalls</loc>'));
             assert.ok(!map.text.includes('/recalls/F-'));
             const llms = await t.get('/llms.txt');
-            assert.ok(llms.text.includes('https://openvibe.food/recalls'));
+            assert.ok(llms.text.includes('https://openvibe.food/recalls.md'));
         });
     } finally {
         await t.close();
