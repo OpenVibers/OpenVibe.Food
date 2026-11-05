@@ -26,7 +26,10 @@ const FIRST_MS = 60 * 1000;
 // year, subject to data availability: re-check both when the source's page changes (the seed's terms_note says so too).
 const VINTAGE = '2023';
 const URL = 'https://www.ers.usda.gov/data-products/fruit-and-vegetable-prices/';
-const NOTE = 'Annual national average retail prices from the U.S. Department of Agriculture, Economic Research Service (Fruit and Vegetable Prices, public domain). ERS says these data should not be used for making inferences about price changes over time, and the findings must not be attributed to Circana.';
+// In plain words for a shopper: whose figure it is, that it is one year's national average, and that it is not a
+// trend (ERS: "should not be used for making inferences about price changes over time"). ERS also asks that its
+// findings not be attributed to Circana, whose scanner data it uses: the page never names Circana, which meets that.
+const NOTE = 'A yearly national average from the USDA Economic Research Service (public domain): a snapshot of one year, not a price trend, so it is not compared with other years.';
 
 // Sources identity ("ERS product | form") → the food it prices, how many pounds the food's pack holds (null when the
 // pack states no weight), and the plain words the page uses for the product. Every row mapped here is priced per pound.

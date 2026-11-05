@@ -94,7 +94,8 @@ function feed(items) {
             assert.ok(apples.text.includes('USDA average price'));
             assert.ok(apples.text.includes('$6.00</b> for this pack at the USDA ERS national average for 2023: $2.00 per lb of apples (fresh)'), apples.text.slice(apples.text.indexOf('USDA average'), apples.text.indexOf('USDA average') + 400));
             assert.ok(apples.text.includes('https://www.ers.usda.gov/data-products/fruit-and-vegetable-prices/'));
-            assert.ok(apples.text.includes('should not be used for making inferences about price changes over time'));
+            assert.ok(apples.text.includes('a snapshot of one year, not a price trend'), 'ERS: no inference about change over time');
+            assert.ok(!/Circana/.test(apples.text), 'ERS: the findings are not attributed to Circana (the page never names it)');
             assert.ok(!apples.text.includes('US average price'), 'BLS prices no apples');
             const bananas = await t.get('/foods/bananas');
             assert.ok(bananas.text.includes('US average price'), 'BLS on the same page');
