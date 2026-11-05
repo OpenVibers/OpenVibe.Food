@@ -167,6 +167,15 @@ published average-price file once a day (source `bls-average-prices`) and Food f
 `food_official_prices`. BLS is cited with its note that it cannot vouch for data once they leave BLS.gov. The list's
 own band stays as it is.
 
+**USDA prices** — the U.S. Department of Agriculture's Economic Research Service publishes annual national-average
+retail prices for 155 fresh and processed fruits and vegetables (Fruit and Vegetable Prices, 2023 retail scanner data,
+public domain); 16 of Food's items are among them, and an item's page shows ERS's figure for the food's pack beside
+BLS's where both price it ([server/food/usda-prices.js](server/food/usda-prices.js)). Food never calls ERS:
+OpenVibe.Sources reads the two published CSV tables once a week (source `usda-ers-fruit-vegetable-prices`) and Food
+follows its change feed into `food_usda_prices`. The page gives the data year (2023) and repeats ERS's warning that the
+data should not be used for making inferences about price changes over time; the annual figure is never shown as a
+month's price or a trend.
+
 **Open Food Facts labels** — Open Food Facts' daily product export (ODbL), read by OpenVibe.Sources as a streamed
 bulk dataset (source `open-food-facts`), is matched by product name to the 42 foods on the list. A food's page shows
 the most complete matching product's per-100 g figures, its Nutri-Score and a link to the product, in a separate

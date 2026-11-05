@@ -47,14 +47,15 @@ async function start() {
     // The recipe library writes a theme every six hours (server/food/library.js); off without OpenVibe.AI.
     ctx.library.start();
     ctx.recipeSearch.start();
-    // Food recalls, BLS's average prices and Open Food Facts products follow OpenVibe.Sources' change feed
-    // (server/food/recalls.js, server/food/official-prices.js, server/food/off.js).
+    // Food recalls, BLS's average prices, USDA ERS's prices and Open Food Facts products follow OpenVibe.Sources'
+    // change feed (server/food/recalls.js, server/food/official-prices.js, server/food/usda-prices.js, server/food/off.js).
     ctx.recalls.start();
     ctx.officialPrices.start();
+    ctx.usdaPrices.start();
     ctx.off.start();
     // The home's "food near" cities: their area searches refreshed in the background (server/food/near-warm.js).
     ctx.nearWarm.start();
-    const extra = [() => { if (subscriptions) subscriptions.stop(); }, () => ctx.library.stop(), () => ctx.recipeSearch.stop(), () => ctx.recalls.stop(), () => ctx.officialPrices.stop(), () => ctx.off.stop(), () => ctx.nearWarm.stop()];
+    const extra = [() => { if (subscriptions) subscriptions.stop(); }, () => ctx.library.stop(), () => ctx.recipeSearch.stop(), () => ctx.recalls.stop(), () => ctx.officialPrices.stop(), () => ctx.usdaPrices.stop(), () => ctx.off.stop(), () => ctx.nearWarm.stop()];
     createLifecycle({ server, ctx, extra });
     return { server, ctx };
 }
