@@ -30,6 +30,7 @@ const { markdown } = require('../render/markdown');
 const { send } = require('../render/layout');
 const foods = require('../food/foods');
 const { NOTE: OFFICIAL_NOTE } = require('../food/official-prices');
+const { NOTE: USDA_NOTE } = require('../food/usda-prices');
 const { planMeals } = require('../food/planner');
 const { searchPlaces, safeUrl, ATTRIBUTION, NEAR_CITIES } = require('../food/places');
 const { matchPantry } = require('../food/pantry-match');
@@ -594,6 +595,7 @@ ${list.length ? sections : notice('Nothing matched. Try a shorter word.', 'warn'
     r.get('/foods/:slug', (req, res) => {
         const f = foods.getFood(req.params.slug);
         const official = f && ctx.officialPrices ? ctx.officialPrices.forFood(f.slug) : null;
+        const usda = f && ctx.usdaPrices ? ctx.usdaPrices.forFood(f.slug) : null;
         const off = f && ctx.off ? ctx.off.forFood(f.slug) : null;
         if (!f) return page(req, res, {
             title: 'No such food', crumbs: [{ label: 'Food list', href: '/foods' }, { label: 'Not found' }],
@@ -621,6 +623,11 @@ ${table(['Store', 'A pack'], f.prices.map((p) => [p.store_name, money(p.price)])
 ${official ? html`<h2>US average price</h2>
 <p><b>${money(official.pack_price)}</b> for this pack at the US city average for ${official.month}: ${money(official.value)} per ${official.unit} of ${official.item.charAt(0).toLowerCase() + official.item.slice(1)} (<a href="${official.url}" rel="noopener">BLS series ${official.series_id}</a>).</p>
 <p class="muted small">${OFFICIAL_NOTE}</p>` : ''}
+${usda ? html`<h2>USDA average price</h2>
+<p>${usda.pack_price == null
+                ? html`<b>${money(usda.value)}</b> per ${usda.unit} of ${usda.item} (${usda.form}) at the USDA ERS national average for ${usda.year} (<a href="${usda.url}" rel="noopener">USDA ERS Fruit and Vegetable Prices</a>).`
+                : html`<b>${money(usda.pack_price)}</b> for this pack at the USDA ERS national average for ${usda.year}: ${money(usda.value)} per ${usda.unit} of ${usda.item} (${usda.form}) (<a href="${usda.url}" rel="noopener">USDA ERS Fruit and Vegetable Prices</a>).`}</p>
+<p class="muted small">${USDA_NOTE}</p>` : ''}
 ${off ? html`<h2>Open Food Facts label</h2>
 <p><b>${off.name}</b>${off.brands ? html` · ${off.brands}` : ''}${off.nutriscore_grade ? html` · Nutri-Score ${off.nutriscore_grade}` : ''}</p>
 ${table(['Per 100 g', 'As the label states'], [
