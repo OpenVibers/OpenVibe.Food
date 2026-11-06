@@ -172,7 +172,9 @@ retail prices for 155 fresh and processed fruits and vegetables (Fruit and Veget
 public domain); 16 of Food's items are among them, and an item's page shows ERS's figure for the food's pack beside
 BLS's where both price it ([server/food/usda-prices.js](server/food/usda-prices.js)). Food never calls ERS:
 OpenVibe.Sources reads the two published CSV tables once a week (source `usda-ers-fruit-vegetable-prices`) and Food
-follows its change feed into `food_usda_prices`. The page gives the data year (2023) and repeats ERS's warning that the
+follows its change feed into `food_usda_prices`. The first pull reads the shared food feed deeply enough (500 items a
+page, up to 300 pages) to pass Open Food Facts' history, so the rows arrive in one pass rather than after days of small
+pages. The page gives the data year (2023) and repeats ERS's warning that the
 data should not be used for making inferences about price changes over time; the annual figure is never shown as a
 month's price or a trend.
 

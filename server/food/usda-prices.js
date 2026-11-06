@@ -15,6 +15,11 @@
  *
  * Pulls a minute after start and then every six hours. Off without OV_SOURCES_INTERNAL_URL and the OAuth client secret
  * (a test passes its own source).
+ *
+ * The food category feed is shared with Open Food Facts' long history, so a new cursor starts tens of thousands of
+ * items behind and the ingest chassis' 25-page default would take days of six-hourly pulls to reach this source. This
+ * consumer reads 500 items a page and up to 300 pages (150k items): the first pull passes the history, and after that
+ * the first page ends the pull. A pull still behind the tip logs a warning and resumes from its committed cursor.
  */
 const ingest = require('openvibe-publishing/ingest');
 
@@ -22,6 +27,9 @@ const SOURCE_KEY = 'usda-ers-fruit-vegetable-prices';
 const CURSOR = 'sources.food.usda.after';
 const EVERY_MS = 6 * 60 * 60 * 1000;
 const FIRST_MS = 60 * 1000;
+// 500 is the Sources API's page cap; 300 pages is more than the whole food feed held on 2026-11-06 (about 79k items).
+const PAGE_SIZE = 500;
+const MAX_PAGES = 300;
 // ERS's current tables use 2023 retail scanner data; the files were last updated 2025-12-09. ERS updates them each
 // year, subject to data availability: re-check both when the source's page changes (the seed's terms_note says so too).
 const VINTAGE = '2023';
@@ -125,11 +133,11 @@ function createUsdaPrices({ config, s, fetchImpl = globalThis.fetch, log = conso
     }
 
     /** Follow Sources' change feed to its end. Never throws: the caller is a timer or a test. */
-    async function pull() {
+    async function pull({ pageSize = PAGE_SIZE, maxPages = MAX_PAGES } = {}) {
         if (!client || running) return { skipped: true };
         running = true;
         try {
-            const out = await ingest.pullChanges({ db: s.db, cursor, source: client, name: CURSOR, apply });
+            const out = await ingest.pullChanges({ db: s.db, cursor, source: client, name: CURSOR, apply, pageSize, maxPages });
             stats.pulls++;
             stats.applied += out.applied;
             stats.removed += out.removed;
@@ -137,6 +145,7 @@ function createUsdaPrices({ config, s, fetchImpl = globalThis.fetch, log = conso
             stats.last_error = null;
             await load();
             if (out.applied || out.removed) log.log(`[Prices] ${out.applied} USDA rows updated, ${out.removed} removed (Sources cursor ${out.after})`);
+            if (out.pages >= maxPages) log.warn(`[Prices] USDA pull is still behind after ${out.pages} pages (Sources cursor ${out.after}); the next pull continues`);
             return out;
         } catch (err) {
             stats.last_error = text(err && err.message, 300);

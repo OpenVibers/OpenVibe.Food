@@ -28,14 +28,20 @@ const blsItem = (series, value, n) => ({
 });
 
 function feed(items) {
-    return {
+    const f = {
         items,
+        // A page cap smaller than the requested limit: a check can then exercise many pages without thousands of items.
+        perPage: null,
+        lastLimit: null,
         async listItems({ after = 0, limit = 100 }) {
+            f.lastLimit = limit;
+            const take = f.perPage || limit;
             const rest = items.filter((x) => x.change_seq > after).sort((a, b) => a.change_seq - b.change_seq);
-            const page = rest.slice(0, limit);
-            return { items: page, next_after: page.length ? page[page.length - 1].change_seq : after, more: rest.length > limit, sources: {} };
+            const page = rest.slice(0, take);
+            return { items: page, next_after: page.length ? page[page.length - 1].change_seq : after, more: rest.length > take, sources: {} };
         },
     };
+    return f;
 }
 
 (async () => {
@@ -109,6 +115,19 @@ function feed(items) {
             const tuna = await t.get('/foods/canned-tuna');
             assert.ok(!tuna.text.includes('USDA average price'));
             assert.ok(!tuna.text.includes('US average price'));
+        });
+
+        await check('a first pull reads past the shared food feed\'s 25-page default to reach the source\'s items', async () => {
+            // The food feed holds Open Food Facts' history before this source's rows: 29 items Food holds, then potatoes.
+            // One item a page makes the pull cross the ingest default of 25 pages (a real page holds 500).
+            for (let n = 10; n < 39; n++) usda.items.push(usdaItem('Kale | Fresh', 3.57, n, { id: `itm_junk${n}` }));
+            usda.items.push(usdaItem('Potatoes | Fresh', 0.921544199, 39));
+            usda.perPage = 1;
+            const out = await t.ctx.usdaPrices.pull();
+            assert.strictEqual(usda.lastLimit, 500, 'the Sources API page cap, not the chassis default of 200');
+            assert.deepStrictEqual([out.pages, out.applied, out.hold], [30, 1, 29]);
+            assert.strictEqual(t.ctx.usdaPrices.forFood('potatoes-5lb').value, 0.9215);
+            assert.strictEqual(Number(await t.ctx.s.db.value("SELECT cursor FROM food_ingest_cursor WHERE name = 'sources.food.usda.after'")), 39);
         });
     } finally {
         await t.close();
