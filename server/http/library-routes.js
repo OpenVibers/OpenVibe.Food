@@ -12,7 +12,8 @@
  * Every page says the recipe was written by OpenVibe.AI; an unreviewed one is noindex.
  */
 const showcase = require('openvibe-shared/showcase');
-const { html, notice, time } = require('../render/html');
+const kit = require('openvibe-shared/kit');
+const { html, raw, notice, time } = require('../render/html');
 const { sameOrigin } = require('./principal');
 const { COST_NOTE } = require('../food/recipes');
 
@@ -79,12 +80,12 @@ ${pages > 1 ? html`<nav class="pager" aria-label="Pages">${pageNo > 1 ? html`<a 
             author: { '@type': 'Organization', name: 'OpenVibe.Food' }, datePublished: x.created_at,
         }] : [];
         page(req, res, {
-            title: x.title, index: Boolean(x.reviewed && x.status === 'published'), localStyles: ['css/recipes.css'], jsonLd,
+            title: x.title, index: Boolean(x.reviewed && x.status === 'published'), localStyles: ['css/recipes.css'], styles: [showcase.STYLESHEET, 'kit.css'], jsonLd,
             description: `${x.title}: ${meta(x)}. A budget recipe from OpenVibe.Food's food list, written by AI.`,
             crumbs: [{ label: 'Recipe library', href: '/recipes/library' }, { label: x.title }],
             body: html`<article class="recipe lib-recipe">
-<header class="recipe-head"><h1>${x.title}</h1><p class="recipe-meta">${meta(x)}</p>
-<button type="button" class="sc-btn recipe-share" data-ov-share-sheet data-url="${url}" data-title="${x.title}" data-text="${`${x.title}: ${meta(x)}. A budget recipe from OpenVibe.Food's food list, written by AI.`}">Share</button></header>
+<header class="recipe-head"><h1>${x.title}</h1><p class="recipe-meta">${meta(x)}</p></header>
+<p>${raw(kit.share({ title: x.title, url, text: `${x.title}: ${meta(x)}. A budget recipe from OpenVibe.Food's food list, written by AI.` }))}</p>
 <p class="notice">${AI_LINE}${x.reviewed ? ' A person at OpenVibe has checked this one.' : ''}</p>
 <div class="recipe-body">
 <section class="recipe-ingredients" aria-label="Ingredients"><h2 class="h4">Ingredients</h2>

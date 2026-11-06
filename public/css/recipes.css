@@ -27,4 +27,3 @@
 .lib-grid { list-style: none; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); }
 .lib-card h2 { margin: 0 0 6px; font-size: 1.1rem; }
 .lib-recipe .recipe-head h1 { margin: 0; font-size: 1.6rem; }
-.recipe-share { padding: 6px 14px; font-size: 14px; }

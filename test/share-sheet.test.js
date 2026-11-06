@@ -39,6 +39,7 @@ const ai = {
         assert.ok(r.text.includes(`data-url="https://openvibe.food/recipes/library/${recipe.slug}"`), 'the recipe address');
         assert.ok(r.text.includes('data-title="Beans and Rice"'), 'its title');
         assert.ok(r.text.includes('data-text="Beans and Rice: Serves 4 · About 25 min'), 'its line');
+        assert.ok(r.text.includes('class="ovk-btn ovk-btn--quiet"') && r.text.includes('<span>Share</span>'), 'the shared kit button');
         assert.ok(!r.text.includes('data-image='), 'no picture: no data-image');
         console.log('food share sheet ok');
     } finally {
