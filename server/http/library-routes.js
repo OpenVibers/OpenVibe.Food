@@ -83,7 +83,8 @@ ${pages > 1 ? html`<nav class="pager" aria-label="Pages">${pageNo > 1 ? html`<a 
             description: `${x.title}: ${meta(x)}. A budget recipe from OpenVibe.Food's food list, written by AI.`,
             crumbs: [{ label: 'Recipe library', href: '/recipes/library' }, { label: x.title }],
             body: html`<article class="recipe lib-recipe">
-<header class="recipe-head"><h1>${x.title}</h1><p class="recipe-meta">${meta(x)}</p></header>
+<header class="recipe-head"><h1>${x.title}</h1><p class="recipe-meta">${meta(x)}</p>
+<button type="button" class="sc-btn recipe-share" data-ov-share-sheet data-url="${url}" data-title="${x.title}" data-text="${`${x.title}: ${meta(x)}. A budget recipe from OpenVibe.Food's food list, written by AI.`}">Share</button></header>
 <p class="notice">${AI_LINE}${x.reviewed ? ' A person at OpenVibe has checked this one.' : ''}</p>
 <div class="recipe-body">
 <section class="recipe-ingredients" aria-label="Ingredients"><h2 class="h4">Ingredients</h2>
