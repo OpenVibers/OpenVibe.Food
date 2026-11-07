@@ -446,6 +446,8 @@ ${table(['Name', 'For', 'Cost', 'Joined'], shared.map((row) => cells(row, row.jo
         const got = id && PLAN_ID.test(id) ? await store.planForViewer(s, viewer, id, { sharing: ctx.sharing }) : null;
         if (got) return got;
         // Specific people, and this reader is not on the list: the audience, never the plan's name, meals or list.
+        // openvibe-shared 4.123.0 draws the card from the [data-ov-share-gate] markup: no inline script, so a strict
+        // CSP needs nothing, and every value is escaped like any other attribute.
         const audience = id && PLAN_ID.test(id) && ctx.sharing ? await ctx.sharing.audienceOf(id).catch(() => null) : null;
         if (audience === 'people') {
             const signInUrl = `/auth/login?next=${encodeURIComponent(`/plan/p/${id}`)}`;
@@ -453,14 +455,7 @@ ${table(['Name', 'For', 'Cost', 'Joined'], shared.map((row) => cells(row, row.jo
                 title: 'A plan shared with specific people', ...PLAN_STYLES, head: SHARE_HEAD, index: false,
                 body: html`<h1>A meal plan shared with specific people</h1>
 <p class="lede">Sign in with the OpenVibe account it was shared with, or ask its owner for access.</p>
-<div id="share-gate"><p><a class="sc-btn sc-primary" href="${signInUrl}">Sign in</a></p></div>
-<script>
-window.addEventListener('DOMContentLoaded', function () {
-  var el = document.getElementById('share-gate');
-  if (el && window.OVShare) OVShare.gate(el, { kind: 'plan', id: ${raw(JSON.stringify(String(id)))},
-    signedInAs: ${raw(JSON.stringify(signedIn(req) ? (req.viewer.username || '') : ''))}, signInUrl: ${raw(JSON.stringify(signInUrl))} });
-});
-</script>`,
+<div id="share-gate" data-ov-share-gate data-kind="plan" data-id="${id}" data-signed-in-as="${signedIn(req) ? (req.viewer.username || '') : ''}" data-sign-in-url="${signInUrl}">This is shared with specific people. Sign in with the OpenVibe account it was shared with, or ask its owner for access.</div>`,
             }, 404);
             return null;
         }
@@ -542,7 +537,9 @@ ${link ? html`<div class="notice ok" role="status"><p><b>Your share link.</b> An
         if (!signedIn(req)) {
             const id = str(req.params.id, 40);
             const audience = ctx.sharing && PLAN_ID.test(id) ? await ctx.sharing.audienceOf(id).catch(() => null) : null;
-            if (audience !== 'link' && audience !== 'public') return toLogin(req, res);
+            // A private plan asks a visitor to sign in; a Specific-people plan shows the gate (loadPlan draws it), so a
+            // stranger signed out is offered Sign in rather than sent away from the plan's address.
+            if (audience !== 'link' && audience !== 'public' && audience !== 'people') return toLogin(req, res);
         }
         const got = await loadPlan(req, res);
         if (got) await planPage(req, res, got);
