@@ -64,13 +64,29 @@ const deletePlan = (s, owner, id) => s.db.exec('DELETE FROM food_plans WHERE own
 const MEMBERS_MAX = 12;          // people in one household besides its owner
 const SHARED_PLANS_MAX = 50;     // households one person may belong to
 
-/** The plan and the viewer's place in it ('owner' or 'member'), or null when it is neither theirs nor shared with them. */
-async function planForViewer(s, viewer, id) {
+/**
+ * The plan and the viewer's place in it, or null when it is neither theirs nor shared with them. `role` is 'owner',
+ * 'member' (a household member or a Specific-people editor: they tick the shopping list) or 'viewer' (shared with
+ * them, read only). The share row decides when there is one; a plan that predates the backfill falls back to the
+ * household link's own rule. Legacy food_plan_members members keep editing (their join link still means Can edit).
+ */
+async function planForViewer(s, viewer, id, { sharing = null } = {}) {
     const row = await s.db.maybe('SELECT * FROM food_plans WHERE id = $1', [id]);
     if (!row) return null;
-    if (row.owner === viewer) return { row, role: 'owner' };
-    const m = await s.db.maybe('SELECT 1 AS ok FROM food_plan_members WHERE plan_id = $1 AND member = $2', [id, viewer]);
-    return m ? { row, role: 'member' } : null;
+    if (row.owner === viewer) return { row, role: 'owner', canEdit: true, audience: sharing ? await sharing.audienceOf(id).catch(() => null) : (row.share_hash ? 'link' : 'private') };
+    const memberRow = await s.db.maybe('SELECT 1 AS ok FROM food_plan_members WHERE plan_id = $1 AND member = $2', [id, viewer]);
+    if (sharing) {
+        const audience = await sharing.audienceOf(id).catch(() => null);
+        if (audience) {
+            const [view, edit] = await Promise.all([
+                sharing.canView(viewer, id).catch(() => false),
+                sharing.canEdit(viewer, id).catch(() => false),
+            ]);
+            if (view || edit || memberRow) return { row, role: edit || memberRow ? 'member' : 'viewer', canEdit: Boolean(edit || memberRow), audience };
+            return null;
+        }
+    }
+    return memberRow ? { row, role: 'member', canEdit: true, audience: row.share_hash ? 'link' : 'private' } : null;
 }
 const setChatRoom = (s, owner, id, slug) => s.db.exec('UPDATE food_plans SET chat_room = $3 WHERE owner = $1 AND id = $2', [owner, id, slug]);
 const setShareHash = (s, owner, id, hash) => s.db.exec('UPDATE food_plans SET share_hash = $3 WHERE owner = $1 AND id = $2', [owner, id, hash]);

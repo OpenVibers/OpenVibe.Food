@@ -33,7 +33,7 @@ const CROSS = { 'sec-fetch-site': 'cross-site' };
             const mine = await t.get(`/plan/p/${id}`, { as: kim });
             assert.strictEqual(mine.status, 200);
             assert.match(mine.headers.get('cache-control'), /private/);
-            assert.ok(mine.text.includes('Our week') && mine.text.includes('The household') && mine.text.includes('Make a share link'));
+            assert.ok(mine.text.includes('Our week') && mine.text.includes('The household') && mine.text.includes('Make a join link'));
             item = (/name="item" value="([a-z0-9-]+)"/.exec(mine.text) || [])[1];
             assert.ok(item, 'the shopping list has tick buttons');
             assert.ok(mine.text.includes('css/plan.css') || mine.text.includes('plan.css'), 'its own stylesheet');

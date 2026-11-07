@@ -13,7 +13,7 @@ Delivery is compared the permitted way: one search opens every delivery app's ow
 OpenVibe.Food answers "what should we eat?" for a household. It finds food banks, soup kitchens, community fridges,
 free pantry boxes and budget grocery stores near a place (OpenStreetMap), plans a shop within a budget and renders the
 shopping list with an estimated cost, carries a food database with nutrition and typical price bands, and keeps a
-pantry with a deterministic "what can I make". Everything is server-rendered and works without JavaScript.
+pantry with a deterministic "what can I make". A saved plan is Only me until its Share sheet says otherwise: Everyone, Anyone with the link, or Specific people (the household — Can view or Can edit, so you tick the list together). Everything is server-rendered and works without JavaScript.
 
 ## What it does
 
@@ -293,6 +293,6 @@ Part of the [OpenVibe network](https://openvibe.network). Built in the open by [
 <!-- versions:start -->
 - openvibe-contracts: v0.289.1
 - openvibe-sdk: v0.91.0
-- openvibe-shared: v4.122.0
+- openvibe-shared: v4.123.0
 - openvibe-publishing: v1.4.0
 <!-- versions:end -->
