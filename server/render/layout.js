@@ -106,6 +106,7 @@ ${appIcon.headTags({ site: 'food' })}
 ${(o.styles || []).map((name) => `<link rel="stylesheet" href="${esc(ovServe.url(name))}">`).join('\n')}
 ${(o.localStyles || []).map((rel) => `<link rel="stylesheet" href="${asset(rel)}">`).join('\n')}
 ${(o.inlineStyles || []).map((css) => `<style>${css}</style>`).join('\n')}
+${o.head || ''}
 ${render(scripts)}
 <meta name="ov-boost" content="food@${esc(RELEASE)}">
 <script src="${ovServe.url('boost.js')}" data-main="#main" defer></script>`,

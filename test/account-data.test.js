@@ -69,7 +69,12 @@ async function joinB(t) {
         try {
             const missing = await uncovered(d.db, {
                 tables: TABLES,
-                exempt: { account_data_events: 'the ledger of requests itself: which export and deletion Food applied' },
+                exempt: {
+                    account_data_events: 'the ledger of requests itself: which export and deletion Food applied',
+                    share_members: 'the people a plan is shared with: erased and exported through the plan it belongs to',
+                    share_access_requests: 'an ask for access to a plan: erased with the plan or with the person asking',
+                    food_share_defaults: 'the person\'s default audience for new plans: erased with the person',
+                },
             });
             assert.deepStrictEqual(missing, [], `a table with a person column is neither covered nor exempted: ${missing.join(', ')}`);
         } finally { await d.close(); }

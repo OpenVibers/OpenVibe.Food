@@ -26,6 +26,7 @@ const configLib = require('./config');
 const { openStore } = require('./db');
 const { createKeyStore } = require('./auth/keys');
 const { createSso } = require('./auth/sso');
+const { createSharing } = require('./food/sharing');
 const { createPrincipal } = require('./http/principal');
 const { createUpstream } = require('./food/upstream');
 const foodStore = require('./food/store');
@@ -59,7 +60,10 @@ async function createApp(opts = {}) {
     const principal = createPrincipal({ config, keys });
     // A food box's codes and score from OpenVibe.Coupons and OpenVibe.Reviews (server/food/box-links.js; off when unset).
     const boxLinks = (config.boxLinks.couponsUrl || config.boxLinks.reviewsUrl) ? require('./food/box-links').createBoxLinks(config.boxLinks) : null;
-    const ctx = { config, s, keys, sso, principal, log, boxLinks };
+    // The one sharing system (design 2026-11-06): a saved plan and its shopping list are its owner's until the
+    // Share sheet says otherwise.
+    const sharing = opts.sharing || createSharing({ db: s.db, config, fetchImpl, log });
+    const ctx = { config, s, keys, sso, principal, log, boxLinks, sharing };
     // The only outbound client this service has (Nominatim + Overpass, paced and cached); the pages and the API get
     // it from here, so every test points it at a stand-in through FOOD_NOMINATIM_URL / FOOD_OVERPASS_URL.
     // Its own wall clock, not the store's: the pace between two calls must not depend on an injected test clock.
@@ -208,6 +212,26 @@ async function createApp(opts = {}) {
 
     // ── API ─────────────────────────────────────────────────
     app.use('/api/v1', rateLimit({ windowMs: 60_000, limit: Number(process.env.FOOD_API_RATE_LIMIT_PER_MIN) || 240, standardHeaders: true, legacyHeaders: false, handler: (req, res) => contracts.http.sendProblem(res, 429, 'rate_limited', { detail: 'too many requests from this address; retry shortly', ctx: req.ov }) }));
+    // ── /api/v1/plan/:id/share — the one Share sheet's API (openvibe-sdk/share) ──
+    // GET/PUT .../share, .../share/requests, .../share/transfer[/accept|decline|cancel], GET /api/v1/share/people
+    // and /api/v1/shared-with-me. Access is still decided by canView on every read path; the router answers only its
+    // own paths.
+    {
+        const shareApi = express.Router();
+        shareApi.use(sharing.shares.router({
+            service: 'food',
+            authenticate: (req) => sharing.shareViewer(req.viewer),
+            describe: sharing.describe,
+        }));
+        const SHARE_PATH = /^\/api\/v1\/(?:shared-with-me$|share\/people$|[^/]+\/[^/]+\/share(?:\/|$))/;
+        app.use((req, res, next) => (SHARE_PATH.test(req.path) ? shareApi(req, res, next) : next()));
+    }
+    // Expire members and transfers and send queued share events/notifications. Unref'd: it never holds a test open.
+    if (opts.startSharingWorker !== false) {
+        const timer = setInterval(() => { sharing.work().catch(() => { /* logged inside */ }); }, 15_000);
+        if (timer.unref) timer.unref();
+        app.locals.sharingTimer = timer;
+    }
     app.use('/api/v1', createApi(ctx));
     app.use('/api', (req, res) => contracts.http.sendProblem(res, 404, 'route.not_found', { detail: 'No such API route', ctx: req.ov }));
 

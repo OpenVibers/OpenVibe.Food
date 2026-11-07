@@ -29,6 +29,7 @@ const { planMeals } = require('../food/planner');
 const { searchPlaces } = require('../food/places');
 const { matchPantry } = require('../food/pantry-match');
 const { suggestRecipes } = require('../food/recipes');
+const { registerPlan } = require('../food/sharing');
 const store = require('../food/store');
 
 const PLAN_ID = /^pln_[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -137,6 +138,7 @@ function createApi(ctx) {
             id: s.newId('pln'), owner: req.principal.requester, title,
             people: plan.spec.people, days: plan.spec.days, budget: plan.spec.budget, plan, created_at: s.iso(),
         });
+        await registerPlan(ctx.sharing, req.principal.requester, row.id, ctx.log || console);
         res.set('Location', `/api/v1/plans/${row.id}`);
         return res.status(201).json(store.planToWire(row));
     });
@@ -148,9 +150,11 @@ function createApi(ctx) {
     });
 
     r.get('/plans/:id', principal.requireCapability('food.plan.read'), limits.reads('food.plan.read'), async (req, res) => {
-        const row = PLAN_ID.test(req.params.id) ? await store.planRow(s, req.principal.requester, req.params.id) : null;
-        if (!row) return fail(req, res, 404, 'food.plan.not_found', 'No such plan.');
-        res.json(store.planToWire(row));
+        // The owner, a household member, or somebody the plan is shared with (design 2026-11-06, canView).
+        const got = PLAN_ID.test(req.params.id) ? await store.planForViewer(s, req.principal.requester, req.params.id, { sharing: ctx.sharing }) : null;
+        if (!got) return fail(req, res, 404, 'food.plan.not_found', 'No such plan.');
+        res.set('Cache-Control', 'private, no-store');
+        res.json({ ...store.planToWire(got.row), canEdit: got.canEdit, audience: got.audience });
     });
 
     // ── Pantry (a person's own) ──────────────────────────────

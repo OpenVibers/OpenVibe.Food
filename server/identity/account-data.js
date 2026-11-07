@@ -35,7 +35,37 @@ const TABLES = [
 
 /** The account-data handle for Food's store (server/db.js createStore). */
 function create({ db, note = 'A pantry row names a food by its slug in server/food/foods.js.', log = console } = {}) {
-    return createAccountData({ db, service: 'food', tables: TABLES, note, log });
+    return createAccountData({
+        db,
+        service: 'food',
+        tables: TABLES,
+        /**
+         * The share row names its owner, members and requests by canonical subject (jsonb), which the table map's
+         * equality cannot reach: the person's own plans take their share rows with them, and their membership of
+         * someone else's plan goes. Children first: share_members, transfers and requests point at shares.
+         */
+        extraErase: async (t, subjects) => {
+            for (const subject of subjects) {
+                const id = String(subject).replace(/^user:/, '');
+                await t.exec("DELETE FROM share_members WHERE service='food' AND subject->>'id' = $1", [id]);
+                await t.exec("DELETE FROM share_transfers WHERE service='food' AND (from_subject->>'id' = $1 OR to_subject->>'id' = $1)", [id]);
+                await t.exec("DELETE FROM share_access_requests WHERE service='food' AND subject->>'id' = $1", [id]);
+                await t.exec("DELETE FROM food_share_defaults WHERE subject = $1", [id]);
+            }
+            for (const subject of subjects) {
+                const id = String(subject).replace(/^user:/, '');
+                const owned = await t.many("SELECT kind, resource_id FROM shares WHERE service='food' AND owner_subject->>'id' = $1", [id]);
+                for (const row of owned) {
+                    await t.exec("DELETE FROM share_members WHERE service='food' AND kind=$1 AND resource_id=$2", [row.kind, row.resource_id]);
+                    await t.exec("DELETE FROM share_transfers WHERE service='food' AND kind=$1 AND resource_id=$2", [row.kind, row.resource_id]);
+                    await t.exec("DELETE FROM share_access_requests WHERE service='food' AND kind=$1 AND resource_id=$2", [row.kind, row.resource_id]);
+                    await t.exec("DELETE FROM shares WHERE service='food' AND kind=$1 AND resource_id=$2", [row.kind, row.resource_id]);
+                }
+            }
+        },
+        note,
+        log,
+    });
 }
 
 module.exports = { create, TABLES, TOPICS };

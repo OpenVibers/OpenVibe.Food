@@ -36,6 +36,7 @@ const { searchPlaces, safeUrl, ATTRIBUTION, NEAR_CITIES } = require('../food/pla
 const { matchPantry } = require('../food/pantry-match');
 const { suggestRecipes } = require('../food/recipes');
 const store = require('../food/store');
+const { registerPlan } = require('../food/sharing');
 const delivery = require('../food/delivery');
 const { mountBoxPages } = require('./box-pages');
 const householdChat = require('../food/household-chat');
@@ -372,20 +373,37 @@ ${plan && !signedIn(req) ? html`<p class="muted small"><a href="/auth/login?next
             id: s.newId('pln'), owner: ownerOf(req), title: str(body.title, 120),
             people: plan.spec.people, days: plan.spec.days, budget: plan.spec.budget, plan, created_at: s.iso(),
         });
+        await registerPlan(ctx.sharing, ownerOf(req), row.id, ctx.log || console);
         return res.redirect(303, `${back}&saved=${encodeURIComponent(row.id)}`);
     });
 
     // Saved plans sit under the same page: nothing personal is ever in a public cache.
     r.get('/plan/saved', async (req, res) => {
         if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fplan%2Fsaved');
-        const [rows, shared] = await Promise.all([store.listPlans(s, ownerOf(req), { limit: 50 }), store.listSharedPlans(s, ownerOf(req))]);
+        const [rows, joined] = await Promise.all([store.listPlans(s, ownerOf(req), { limit: 50 }), store.listSharedPlans(s, ownerOf(req))]);
+        // A household member stays on the list only while the share row still lets them in (an old join link can be
+        // off, or the audience can have moved to Specific people without them).
+        const shared = [];
+        for (const row of joined) {
+            if (!ctx.sharing) { shared.push(row); continue; }
+            if (await store.planForViewer(s, ownerOf(req), row.id, { sharing: ctx.sharing })) shared.push(row);
+        }
         const cells = (row, when) => {
             const plan = typeof row.plan === 'string' ? JSON.parse(row.plan) : row.plan;
             return [html`<a href="/plan/p/${row.id}">${planTitle(row)}</a>`, `${row.people} people, ${row.days} days`, money(plan.totals.cost), time(when)];
         };
+        const audience = ctx.sharing ? await ctx.sharing.defaultOf(ownerOf(req)).catch(() => 'private') : 'private';
+        const AUDIENCE_TEXT = { public: 'Everyone', link: 'Anyone with the link', people: 'Specific people', private: 'Only me' };
+        const options = ['private', 'people', 'link', 'public']
+            .map((a) => html`<option value="${a}"${a === audience ? raw(' selected') : ''}>${AUDIENCE_TEXT[a]}</option>`);
         page(req, res, {
             title: 'Your plans', crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Saved' }],
             body: html`<h1>Your saved plans</h1>
+<div class="plan-actions plan-defaults">
+<form method="post" action="/plan/saved/defaults"><label class="muted small" for="plan-default-audience">New plans</label> <select id="plan-default-audience" name="audience">${options}</select>
+<label class="muted small"><input type="checkbox" name="apply_all" value="1"> Apply to all my existing plans</label>
+<button class="sc-btn" type="submit">Save</button></form></div>
+<p class="muted small">Only me unless you choose otherwise. A plan's Share button changes just that plan.</p>
 ${table(['Name', 'For', 'Cost', 'Saved'], rows.map((row) => cells(row, row.created_at)), { empty: 'No saved plans yet. Make one on the plan page and save it.' })}
 ${shared.length ? html`<h2>Shared with you</h2>
 ${table(['Name', 'For', 'Cost', 'Joined'], shared.map((row) => cells(row, row.joined_at)))}` : ''}
@@ -404,14 +422,48 @@ ${table(['Name', 'For', 'Cost', 'Joined'], shared.map((row) => cells(row, row.jo
     const nameOf = (req) => String(req.viewer.displayName || req.viewer.username || 'someone').slice(0, 80);
     const planTitle = (row) => row.title || `Plan ${String(row.id).slice(-6)}`;
     const PLAN_STYLES = { styles: [showcase.STYLESHEET], localStyles: ['css/plan.css'] };
+    // The one Share sheet (openvibe-shared 4.114+): loaded on the plan pages that carry a Share button or a gate.
+    const SHARE_HEAD = `<link rel="stylesheet" href="${require('openvibe-shared/serve').url('ov-share.css')}"><script src="${require('openvibe-shared/serve').url('ov-share.js')}" defer></script>`;
     const form = express.urlencoded({ extended: false, limit: '16kb' });
     const toLogin = (req, res) => res.redirect(303, `/auth/login?next=${encodeURIComponent(req.originalUrl.slice(0, 400))}`);
     const notOurs = (req, res) => res.status(403).type('text/plain').send('A plan is changed from openvibe.food itself.');
 
+    r.post('/plan/saved/defaults', form, async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fplan%2Fsaved');
+        if (!sameOrigin(req, config.baseUrl)) return res.status(403).type('text/plain').send('A plan is changed from openvibe.food itself.');
+        if (ctx.sharing) {
+            const audience = ['private', 'people', 'link', 'public'].includes(req.body.audience) ? req.body.audience : 'private';
+            await ctx.sharing.setDefault(ownerOf(req), audience, { applyAll: String(req.body.apply_all || '') === '1' })
+                .catch((err) => (ctx.log || console).warn('[Food] the plan default was not saved:', err.message));
+        }
+        return res.redirect(303, '/plan/saved');
+    });
+
+
     async function loadPlan(req, res) {
         const id = str(req.params.id, 40);
-        const got = id && PLAN_ID.test(id) ? await store.planForViewer(s, ownerOf(req), id) : null;
+        const viewer = signedIn(req) ? ownerOf(req) : null;
+        const got = id && PLAN_ID.test(id) ? await store.planForViewer(s, viewer, id, { sharing: ctx.sharing }) : null;
         if (got) return got;
+        // Specific people, and this reader is not on the list: the audience, never the plan's name, meals or list.
+        const audience = id && PLAN_ID.test(id) && ctx.sharing ? await ctx.sharing.audienceOf(id).catch(() => null) : null;
+        if (audience === 'people') {
+            const signInUrl = `/auth/login?next=${encodeURIComponent(`/plan/p/${id}`)}`;
+            page(req, res, {
+                title: 'A plan shared with specific people', ...PLAN_STYLES, head: SHARE_HEAD, index: false,
+                body: html`<h1>A meal plan shared with specific people</h1>
+<p class="lede">Sign in with the OpenVibe account it was shared with, or ask its owner for access.</p>
+<div id="share-gate"><p><a class="sc-btn sc-primary" href="${signInUrl}">Sign in</a></p></div>
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+  var el = document.getElementById('share-gate');
+  if (el && window.OVShare) OVShare.gate(el, { kind: 'plan', id: ${raw(JSON.stringify(String(id)))},
+    signedInAs: ${raw(JSON.stringify(signedIn(req) ? (req.viewer.username || '') : ''))}, signInUrl: ${raw(JSON.stringify(signInUrl))} });
+});
+</script>`,
+            }, 404);
+            return null;
+        }
         page(req, res, { title: 'Plan not found', crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Not found' }],
             body: html`<h1>Plan not found</h1><p>It is not yours or shared with you, or it was deleted.</p><p><a href="/plan/saved">Your plans</a></p>` }, 404);
         return null;
@@ -434,43 +486,64 @@ ${table(['Name', 'For', 'Cost', 'Joined'], shared.map((row) => cells(row, row.jo
 
     async function planPage(req, res, got, { link = null, problem = null, status = 200 } = {}) {
         const { row, role } = got;
+        const canEdit = got.canEdit !== undefined ? !!got.canEdit : role !== 'viewer';
+        const audience = got.audience || (row.share_hash ? 'link' : 'private');
         const plan = typeof row.plan === 'string' ? JSON.parse(row.plan) : row.plan;
         const [members, ticks] = await Promise.all([store.listMembers(s, row.id), store.listTicks(s, row.id)]);
+        // The people the Share sheet added (Specific people). The household list is the same idea: everyone who can
+        // see this plan. Their names come from Network's projections; if it cannot answer, the subject's tail does.
+        const sharedPeople = ctx.sharing && role === 'owner' ? await ctx.sharing.membersOf(ownerOf(req), row.id).catch(() => []) : [];
         if (role === 'owner' && row.chat_room) householdChat.syncMembers(chatDeps(req), row, members).catch(() => {});
         const ticked = new Map(ticks.map((t) => [t.item, t]));
         const got_ = plan.shopping_list.filter((i) => ticked.has(i.slug)).length;
-        const me = ownerOf(req);
+        const me = signedIn(req) ? ownerOf(req) : null;
+        const people = members.length + sharedPeople.length + 1;
+        // A household's names are for the household; somebody reading an Everyone/link plan sees only how many.
+        const showHousehold = role === 'owner' || role === 'member' || audience === 'people' || audience === 'private';
+        const AUDIENCE_TEXT = { public: 'Everyone', link: 'Anyone with the link', people: 'Specific people', private: 'Only me' };
         const btn = (action, label, { cls = 'sc-btn', fields = {} } = {}) => html`<form method="post" action="/plan/p/${row.id}/${action}">${Object.entries(fields).map(([k, v]) => html`<input type="hidden" name="${k}" value="${v}">`)}<button class="${cls}" type="submit">${label}</button></form>`;
         res.set('Cache-Control', cache.htmlHeaders({ private: true }));
         page(req, res, {
-            title: planTitle(row), crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Your plans', href: '/plan/saved' }, { label: planTitle(row) }], ...PLAN_STYLES,
+            title: planTitle(row), crumbs: [{ label: 'Meal plan', href: '/plan' }, { label: 'Your plans', href: '/plan/saved' }, { label: planTitle(row) }], ...PLAN_STYLES, head: SHARE_HEAD,
             body: html`<h1>${planTitle(row)}</h1>
-<p class="lede">${role === 'owner' ? 'Your plan' : 'Shared with you'} · ${members.length + 1} ${members.length ? 'people in this household' : 'person so far'}.</p>
+<p class="lede">${role === 'owner' ? 'Your plan' : canEdit ? 'Shared with you' : 'Shared with you, read only'} · ${people} ${people === 1 ? 'person' : 'people'}.</p>
+<p class="plan-share"><button type="button" class="sc-btn" data-ov-share-sheet data-kind="plan" data-id="${row.id}" data-title="${planTitle(row)}">Share</button> <span class="badge">${AUDIENCE_TEXT[audience] || 'Only me'}</span></p>
 ${problem ? notice(problem, 'warn') : ''}
 <h2>The shopping list</h2>
-<p class="muted small">${got_} of ${plan.shopping_list.length} got. A tick shows for everyone in the household.</p>
+<p class="muted small">${got_} of ${plan.shopping_list.length} got. ${canEdit ? 'A tick shows for everyone it is shared with.' : 'Only its owner and the people with Can edit tick it.'}</p>
 <ul class="shop-list">${plan.shopping_list.map((i) => {
                 const t = ticked.get(i.slug);
-                return html`<li class="${t ? 'got' : ''}"><form method="post" action="/plan/p/${row.id}/tick"><input type="hidden" name="item" value="${i.slug}"><input type="hidden" name="done" value="${t ? '0' : '1'}"><button class="tick" type="submit" aria-pressed="${t ? 'true' : 'false'}" aria-label="${t ? 'Not got yet' : 'Got it'}: ${i.name}">${t ? '✓' : ''}</button></form>
+                const tick = canEdit
+                    ? html`<form method="post" action="/plan/p/${row.id}/tick"><input type="hidden" name="item" value="${i.slug}"><input type="hidden" name="done" value="${t ? '0' : '1'}"><button class="tick" type="submit" aria-pressed="${t ? 'true' : 'false'}" aria-label="${t ? 'Not got yet' : 'Got it'}: ${i.name}">${t ? '✓' : ''}</button></form>`
+                    : html`<span class="tick" aria-hidden="true">${t ? '✓' : ''}</span>`;
+                return html`<li class="${t ? 'got' : ''}">${tick}
 <span class="shop-name"><a href="/foods/${i.slug}">${i.name}</a> × ${String(i.packs)}</span><span class="shop-meta muted small">${i.store_name || ''} ${money(i.cost)}${t ? html` · got by ${t.ticked_by === me ? 'you' : (t.name || 'someone')}` : ''}</span></li>`;
             })}</ul>
 ${planBody(plan, { shopping: false })}
 <h2 id="household">The household</h2>
-<ul class="household">
+${showHousehold ? html`<ul class="household">
 <li>${role === 'owner' ? 'You' : 'The plan’s owner'} <span class="badge">owner</span></li>
 ${members.map((m) => html`<li>${m.member === me ? 'You' : (m.name || 'Someone')} <span class="muted small">joined ${time(m.joined_at)}</span>${role === 'owner' ? btn('remove', 'Remove', { fields: { member: m.member } }) : ''}</li>`)}
-</ul>
+${sharedPeople.map((m) => html`<li>${m.subject && m.subject.id === String(me).replace(/^user:/, '') ? 'You' : (m.display_name || m.username || 'Someone')} <span class="muted small">${m.role === 'editor' ? 'can edit' : 'can view'}${m.expires_at ? ` until ${String(m.expires_at).slice(0, 10)}` : ''}</span></li>`)}
+</ul>` : html`<p class="muted small">${people} ${people === 1 ? 'person' : 'people'} can open this plan. Its list of people is for them.</p>`}
 ${chatSection(row, role, members)}
-${role === 'owner' ? html`${link ? html`<div class="notice ok" role="status"><p><b>Your share link.</b> Anyone signed in with OpenVibe who opens it can join this household. It is shown once: copy it now. A new link replaces it.</p>
+${role === 'owner' ? html`<h2 id="plan-together">The household link</h2>
+<p class="muted small">A join link is a second way in, for someone who is not an OpenVibe account you can name: anyone signed in who opens it joins the household and ticks the list with you. The Share button above is the sheet's one; this link is yours to turn on and off.</p>
+${link ? html`<div class="notice ok" role="status"><p><b>Your share link.</b> Anyone signed in with OpenVibe who opens it can join this household. It is shown once: copy it now. A new link replaces it.</p>
 <p class="share-link"><input type="text" readonly value="${link}" aria-label="Share link"></p></div>` : ''}
-<p class="muted small">${row.share_hash ? 'A share link is on.' : 'No share link is on.'} Members see this plan and tick the shopping list; only you change the household.</p>
-<div class="plan-actions">${btn('share', row.share_hash ? 'Make a new share link' : 'Make a share link', { cls: 'sc-btn sc-primary' })}${row.share_hash ? btn('unshare', 'Turn the link off') : ''}${btn('delete', 'Delete this plan', { cls: 'sc-btn danger' })}</div>`
-                : html`<div class="plan-actions">${btn('leave', 'Leave this household', { cls: 'sc-btn danger' })}</div>`}`,
+<p class="muted small">${row.share_hash ? 'A join link is on.' : 'No join link is on.'}</p>
+<div class="plan-actions">${btn('share', row.share_hash ? 'Make a new join link' : 'Make a join link')}${row.share_hash ? btn('unshare', 'Turn the link off') : ''}${btn('delete', 'Delete this plan', { cls: 'sc-btn danger' })}</div>`
+                : role === 'viewer' ? '' : html`<div class="plan-actions">${btn('leave', 'Leave this household', { cls: 'sc-btn danger' })}</div>`}`,
         }, status);
     }
 
     r.get('/plan/p/:id', async (req, res) => {
-        if (!signedIn(req)) return toLogin(req, res);
+        // Anyone with the link (and Everyone) opens the page signed out; Only me and Specific people need a person.
+        if (!signedIn(req)) {
+            const id = str(req.params.id, 40);
+            const audience = ctx.sharing && PLAN_ID.test(id) ? await ctx.sharing.audienceOf(id).catch(() => null) : null;
+            if (audience !== 'link' && audience !== 'public') return toLogin(req, res);
+        }
         const got = await loadPlan(req, res);
         if (got) await planPage(req, res, got);
     });
@@ -485,6 +558,7 @@ ${role === 'owner' ? html`${link ? html`<div class="notice ok" role="status"><p>
         const back = () => res.redirect(303, `/plan/p/${row.id}`);
         switch (req.params.action) {
         case 'tick': {
+            if (!got.canEdit) return res.status(403).type('text/plain').send('This plan was shared with you to read. Only its owner and the people with Can edit tick the list.');
             const plan = typeof row.plan === 'string' ? JSON.parse(row.plan) : row.plan;
             const item = str(body.item, 80);
             if (!item || !plan.shopping_list.some((i) => i.slug === item)) return res.status(400).type('text/plain').send('That is not on this shopping list.');
@@ -502,9 +576,16 @@ ${role === 'owner' ? html`${link ? html`<div class="notice ok" role="status"><p>
             return res.status(404).type('text/plain').send('Not found.');
         }
         if (req.params.action === 'share') {
+            // A join link is an invite to a household: the plan is Specific people, and this link is how somebody not
+            // yet on the list joins it. The audience first, then the link (an audience change ends any old link).
+            if (ctx.sharing) {
+                const audience = await ctx.sharing.audienceOf(row.id).catch(() => null);
+                if (!audience) await ctx.sharing.register(ownerOf(req), row.id, 'people').catch(() => {});
+                else if (audience !== 'people') await ctx.sharing.setAudience(ownerOf(req), row.id, 'people').catch(() => {});
+            }
             const secret = crypto.randomBytes(32).toString('base64url');
             await store.setShareHash(s, ownerOf(req), row.id, hashOf(secret));
-            return planPage(req, res, { row: { ...row, share_hash: 'on' }, role }, { link: `${config.baseUrl}/plan/join/${secret}` });
+            return planPage(req, res, { row: { ...row, share_hash: 'on' }, role, canEdit: true }, { link: `${config.baseUrl}/plan/join/${secret}` });
         }
         if (req.params.action === 'chat') {
             if (row.chat_room) return res.redirect(303, `/plan/p/${row.id}#chat`);
