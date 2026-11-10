@@ -2,6 +2,9 @@
 
 > What should we eat?
 
+**Live site:** https://openvibe.food · **API docs:** https://openvibe.services · **For AI:** https://openvibe.food/llms.txt
+**Run it:** `npm ci && npm run dev` (Node 22 or newer) · **Tests:** `npm test`
+
 **Status:** the product works — food near you, a meal planner, the food database, the pantry, recipe ideas from the network's AI and plan together (a saved plan shared with a household, with a shopping list everyone ticks off) are live and tested.
 Delivery is compared the permitted way: one search opens every delivery app's own search (`/delivery`), with the meal kits side by side; prices and fees stay on each app, where the person is signed in.
 
