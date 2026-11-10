@@ -22,4 +22,4 @@
 .dv-premium { color: color-mix(in srgb, #d946ef 75%, var(--text-primary, #e6edf7)); border-color: rgba(240, 171, 252, .45); }
 .dv-watch { white-space: nowrap; }
 @media (max-width: 640px) { .dv-kit { grid-template-columns: minmax(0, 1fr); gap: 6px; } .dv-watch { justify-self: start; } }
-@media (prefers-reduced-motion: reduce) { .dv-app, .dv-app:hover { transition: none; transform: none; } }
+html[data-ov-motion=off] .dv-app,html[data-ov-motion=off] .dv-app:hover{transform: none}
