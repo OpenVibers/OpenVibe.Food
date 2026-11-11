@@ -742,7 +742,7 @@ ${foods.FOODS.filter((f) => f.group === id).map((f) => html`<label class="pantry
 </fieldset>`);
         const recipeLine = (x) => html`<li><b>${x.name}</b> — serves ${x.serves}, about ${x.minutes} minutes${x.missing && x.missing.length ? html` · missing ${x.missing.join(', ')}` : ''}</li>`;
         page(req, res, {
-            description: 'Keep what is in your cupboard, added by barcode, photo or receipt, and see which budget recipes you can make with it now.', title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET], localStyles: ['css/pantry.css'], scripts: ['js/barcode-scan.js', 'js/pantry-photo.js'],
+            description: 'Keep what is in your cupboard, added by barcode, photo or receipt, and see which budget recipes you can make with it now.', title: 'Your cupboard', crumbs: [{ label: 'Your cupboard' }], styles: [showcase.STYLESHEET, 'ov-upload.css'], localStyles: ['css/pantry.css'], head: `<script src="${ovServe.url('ov-upload.js')}" defer></script>`, scripts: ['js/barcode-scan.js', 'js/pantry-photo.js'],
             body: html`<h1>Your cupboard</h1>
 <p class="lede">Tick what you have. Nothing leaves your account; the matching is done here, not by a model.</p>
 ${saved ? notice('Cupboard saved.', 'ok') : ''}
@@ -760,10 +760,10 @@ ${addedCount > 1 && addedCount <= 80 ? notice(`Added ${addedCount} items to your
 <fieldset><legend>Add from a photo or a receipt</legend>
 <div class="pantry-photo-kind"><label><input type="radio" name="kind" value="shelf" checked> A cupboard, fridge or shelf</label>
 <label><input type="radio" name="kind" value="receipt"> A grocery receipt</label></div>
-<input type="file" id="photo-file" accept="image/*" capture="environment" aria-describedby="photo-note">
+<div id="photo-picker"></div><p id="photo-error" role="alert" hidden></p>
 <input type="hidden" name="image" id="photo-data">
 <button class="sc-btn" type="submit" id="photo-send" disabled>Read the photo</button>
-<p class="muted small" id="photo-note">OpenVibe.AI reads the photo and lists what it sees from Food's list; you choose what to add. The photo is made smaller on your device first, is not kept, and a receipt's prices, card and store details are never read out. Ten photos a day. Needs JavaScript.</p>
+<p class="muted small" id="photo-note">Choose or drop an image, up to 20 MB. It is made smaller on your device first; the result must fit under 3.5 MB. OpenVibe.AI reads it and lists what it sees from Food's list; you choose what to add. The original photo is not uploaded or kept, and a receipt's prices, card and store details are never read out. Ten photos a day. Needs JavaScript.</p>
 </fieldset></form>
 <p><a href="/recipes">Get recipe ideas</a></p>
 <form method="post" action="/pantry" class="pantry-form">

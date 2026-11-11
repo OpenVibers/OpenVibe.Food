@@ -80,7 +80,12 @@ const idx = (slug) => foods.FOODS.findIndex((f) => f.slug === slug);
 
         await check('the cupboard page offers the photo form', async () => {
             const page = await t.get('/pantry', { as: kim });
-            assert.ok(page.text.includes('action="/pantry/photo"') && page.text.includes('js/pantry-photo.js') && page.text.includes('capture="environment"'));
+            assert.ok(page.text.includes('action="/pantry/photo"') && page.text.includes('js/pantry-photo.js'));
+            assert.match(page.text, /ov-upload\.css/);
+            assert.match(page.text, /ov-upload\.js/);
+            assert.match(page.text, /id="photo-picker"/);
+            assert.match(page.text, /id="photo-error" role="alert"/);
+            assert.match(page.text, /up to 20 MB/);
         });
     } finally { await t.close(); }
     done();
