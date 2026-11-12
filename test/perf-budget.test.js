@@ -28,7 +28,7 @@ const BUDGETS = {
     cssFiles: 3,   // 3 (app.css, the cached /shared/showcase.css and css/home.css)
     // 16.4 since the product's own pages brought their stylesheet with them (the search and plan forms, the place
     // cards, the pantry's tick list); app.css itself stayed within a few lines.
-    cssRawKB: 51.5, // 51.5: measured 46.5 with openvibe-shared 4.161.0, plus room for 4.162.0–4.163.0, 2026-11-09
+    cssRawKB: 55.5, // 55.5 openvibe-shared v4.228.0 (2026-11-12: measured 55.4, raised by pin-bump from 51.5); 51.5: measured 46.5 with openvibe-shared 4.161.0, plus room for 4.162.0–4.163.0, 2026-11-09
     cssBrotliKB: 10.5,   // 9.9 with 2026-11-01: phone table cards (2026-11-01); 8.9 with openvibe-shared 4.48.0 (the site switcher on the mark, the menu's Start tab and quick tools; Kit's touch hit areas and the phone navbar fix, 4.44-4.47.3); 8.6 with 11 touch targets (2026-10-29: the chips and the food search's fields at 44 px); 8.2 the home's phone limits and fold (2026-10-29); 6.4 with Shared 4.13.0 (2026-10-26: account links); 5.3 with css/home.css; 4.3 with the hero search panel
     externalFiles: 0,   // 0
 };
