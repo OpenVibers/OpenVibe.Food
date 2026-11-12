@@ -16,9 +16,9 @@ const { boot, check, done } = require('./helpers/boot');
             const page = r.text;
             const block = page.slice(page.indexOf('<div class="pick" id="pick-food">'), page.indexOf('<details class="home-fold"><summary>Everything food'));
             assert.ok(block.startsWith('<div class="pick" id="pick-food">'), 'the pick block is on the home');
-            assert.ok(!/<input type="radio"/.test(block), 'no radio in the pick block');
-            assert.match(block, /<nav class="pick-row" aria-label="What to eat, and what it costs">/);
-            const chips = [...block.matchAll(/<a class="pick-chip" href="#(pp-food-[a-z]+)">[^<]+<\/a>/g)];
+            assert.ok(/<input type=\"radio\" class=\"ov-parts-r\"[^>]* checked>/.test(block), 'the first part is open on a phone (Shared pick(): tabs, 11-12)');
+            assert.match(block, /<div class=\"ov-parts ov-parts--front\" data-parts=\"\d+\">/, 'its parts are tabs on a phone');
+            const chips = [...block.matchAll(/<label for="ovp-[a-z0-9]+-(pp-food-[a-z]+)">[^<]+(?: <span class="ov-parts-n">[^<]*<\/span>)?<\/label>/g)];
             assert.ok(chips.length >= 6, `a link per block (${chips.length})`);
             // Every block stays in the page, with its heading, and every link points at one of them.
             for (const h of ['The most food for a dollar', 'The cheapest protein', 'Browse the food list', 'Every delivery app at once', 'Meal kits, side by side', 'Find a food bank']) {
