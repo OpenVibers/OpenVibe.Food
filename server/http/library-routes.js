@@ -13,6 +13,7 @@
  */
 const showcase = require('openvibe-shared/showcase');
 const kit = require('openvibe-shared/kit');
+const glyphs = require('openvibe-shared/glyphs');
 const { html, raw, notice, time } = require('../render/html');
 const { sameOrigin } = require('./principal');
 const { COST_NOTE } = require('../food/recipes');
@@ -60,7 +61,7 @@ ${recipes.length ? html`<ol class="lib-grid">${recipes.map((x) => html`<li class
 <p class="recipe-meta">${meta(x)}${x.reviewed ? ' · checked by a person' : ''}${x.status === 'hidden' ? ' · hidden' : ''}</p>
 <p class="muted small">${x.ingredients.slice(0, 6).map((i) => i.name).join(', ')}${x.ingredients.length > 6 ? '…' : ''}</p></li>`)}</ol>`
         : html`<p class="muted">The first recipes are being written. Meanwhile, <a href="/recipes">get ideas from your own cupboard</a>.</p>`}
-${pages > 1 ? html`<nav class="pager" aria-label="Pages">${pageNo > 1 ? html`<a href="/recipes/library${pageNo > 2 ? `?page=${pageNo - 1}` : ''}">← Newer</a>` : ''} <span>Page ${pageNo} of ${pages}</span> ${pageNo < pages ? html`<a href="/recipes/library?page=${pageNo + 1}">Older →</a>` : ''}</nav>` : ''}`,
+${pages > 1 ? html`<nav class="pager" aria-label="Pages">${pageNo > 1 ? html`<a href="/recipes/library${pageNo > 2 ? `?page=${pageNo - 1}` : ''}">${raw(glyphs.svg('arrow-left', { size: 14 }))} Newer</a>` : ''} <span>Page ${pageNo} of ${pages}</span> ${pageNo < pages ? html`<a href="/recipes/library?page=${pageNo + 1}">Older ${raw(glyphs.svg('arrow-right', { size: 14 }))}</a>` : ''}</nav>` : ''}`,
         });
     });
 

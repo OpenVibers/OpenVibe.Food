@@ -9,6 +9,7 @@
  * a single recall is noindex, as the source's registry entry asks (Sources' default_indexability).
  */
 const showcase = require('openvibe-shared/showcase');
+const glyphs = require('openvibe-shared/glyphs');
 const { html, raw, notice, badge } = require('../render/html');
 const { CLASSES, CLASS_TEXT, NOTE, FDA_REPORTS } = require('../food/recalls');
 
@@ -67,7 +68,7 @@ ${rows.length ? html`<p class="muted small">${total} ${total === 1 ? 'recall' : 
 <ol class="recalls">${rows.map((x) => recallCard(x))}</ol>`
         : all ? notice(html`Nothing matched. <a href="/recalls">Show every recall</a>.`, 'warn')
             : html`<p class="muted">The recall reports appear here once OpenVibe.Sources has read them. Meanwhile, <a href="${FDA_REPORTS}" rel="noopener">search the FDA's own reports</a>.</p>`}
-${pages > 1 ? html`<nav class="pager" aria-label="Pages">${pageNo > 1 ? html`<a href="${qs(pageNo - 1)}">← Newer</a>` : ''} <span>Page ${pageNo} of ${pages}</span> ${pageNo < pages ? html`<a href="${qs(pageNo + 1)}">Older →</a>` : ''}</nav>` : ''}
+${pages > 1 ? html`<nav class="pager" aria-label="Pages">${pageNo > 1 ? html`<a href="${qs(pageNo - 1)}">${raw(glyphs.svg('arrow-left', { size: 14 }))} Newer</a>` : ''} <span>Page ${pageNo} of ${pages}</span> ${pageNo < pages ? html`<a href="${qs(pageNo + 1)}">Older ${raw(glyphs.svg('arrow-right', { size: 14 }))}</a>` : ''}</nav>` : ''}
 ${noteBlock()}`,
         });
     });
