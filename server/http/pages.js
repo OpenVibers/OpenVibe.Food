@@ -21,6 +21,7 @@ const ovServe = require('openvibe-shared/serve');
 const frame = require('openvibe-shared/frame');
 const showcase = require('openvibe-shared/showcase');
 const cache = require('openvibe-shared/cache-policy');
+const glyphs = require('openvibe-shared/glyphs');
 const { asyncRouter } = require('./router');
 const { createDiscoveryRoutes, homeJsonLd } = require('./discovery');
 const { sameOrigin } = require('./principal');
@@ -185,7 +186,7 @@ ${watchable ? html`<p class="muted small">Watch for changes opens OpenVibe.Watch
             id: 'kits', label: 'Meal kits',
             html: html`<section class="sc-sec" id="kits" aria-labelledby="h-kits"><h2 id="h-kits">Meal kits, side by side</h2>
 <p class="sc-lede">From the cheapest kits to fully cooked meals. Each opens its own plans page, where the current price per serving is. <a href="/delivery#kits">All ${delivery.KITS.length} kits</a></p>
-<ul class="home-cards five short">${delivery.KITS.map((k) => html`<li><a href="${k.plans}" rel="noopener nofollow" target="_blank"><b>${k.name} <span class="hc-tag">${delivery.TIER_TEXT[k.tier]}</span></b><span class="hc-sub">${k.what}</span><span class="hc-host">${k.host} ↗</span></a></li>`)}</ul></section>`,
+<ul class="home-cards five short">${delivery.KITS.map((k) => html`<li><a href="${k.plans}" rel="noopener nofollow" target="_blank"><b>${k.name} <span class="hc-tag">${delivery.TIER_TEXT[k.tier]}</span></b><span class="hc-sub">${k.what}</span><span class="hc-host">${k.host} ${raw(glyphs.svg('open', { size: 14 }))}</span></a></li>`)}</ul></section>`,
         });
         panes.push({
             id: 'near', label: 'Food banks',
@@ -954,7 +955,7 @@ ${row.recipes.length ? html`<div class="recipe-grid">${row.recipes.map(recipeBlo
         const links = delivery.linksFor(q);
         const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
         const kitRow = (k) => html`<li class="dv-kit"><span class="dv-tier dv-${k.tier}">${delivery.TIER_TEXT[k.tier]}</span>
-<span class="dv-kit-main"><a class="dv-kit-name" href="${k.plans}" target="_blank" rel="noopener nofollow">${k.name} ↗</a><span class="muted small">${k.what}</span></span>
+<span class="dv-kit-main"><a class="dv-kit-name" href="${k.plans}" target="_blank" rel="noopener nofollow">${k.name} ${raw(glyphs.svg('open', { size: 14 }))}</a><span class="muted small">${k.what}</span></span>
 <a class="dv-watch small" href="${WATCH_NEW}?${new URLSearchParams({ template: 'page', url: k.plans, name: `Food: ${k.name} prices` })}">Watch its prices</a></li>`;
         page(req, res, {
             title: q ? `“${q}” on every delivery app` : 'Delivery and meal kits, compared',
@@ -966,7 +967,7 @@ ${row.recipes.length ? html`<div class="recipe-grid">${row.recipes.map(recipeBlo
 <p class="lede">Type it once: every delivery app opens its own search for it, in a new tab. Prices, fees and your address stay on each app, so you see your real total where you are signed in.</p>
 <form class="dv-form" method="get" action="/delivery" role="search"><label for="dv-q">A dish, a restaurant or groceries</label>
 <div class="dv-row"><input id="dv-q" name="q" type="search" maxlength="120" required placeholder="pad thai, Chipotle, eggs and milk" value="${q}"><button class="sc-btn sc-primary" type="submit">Search every app</button></div></form>
-${links.length ? html`<ul class="dv-apps">${links.map((l) => html`<li class="dv-app"><a class="dv-open" href="${l.url}" target="_blank" rel="noopener nofollow"><span class="dv-name">${l.name}</span><span class="dv-host">${hostOf(l.url)} ↗</span></a><p class="dv-best muted small">${l.best}</p></li>`)}</ul>
+${links.length ? html`<ul class="dv-apps">${links.map((l) => html`<li class="dv-app"><a class="dv-open" href="${l.url}" target="_blank" rel="noopener nofollow"><span class="dv-name">${l.name}</span><span class="dv-host">${hostOf(l.url)} ${raw(glyphs.svg('open', { size: 14 }))}</span></a><p class="dv-best muted small">${l.best}</p></li>`)}</ul>
 <p class="muted small">Compare the totals each app shows you, delivery and service fees included. For coupon codes on an app's own page, the <a href="https://openvibe.coupons/companion">OpenVibe Companion</a> browser extension shows what OpenVibe.Coupons knows for it.</p>` : ''}
 <section aria-labelledby="h-kits"><h2 id="h-kits">Meal kits and prepared meals</h2>
 <p class="muted">Boxes of recipes and ingredients, or meals ready to heat. <a href="/boxes"><strong>Every food box, compared</strong></a>: meal kits, ready meals, produce, meat and fish, snacks, coffee, baby and dog food, with prices as their own pages state them, plan sizes, diets, codes and reviews. Prices change with the box size and the week, so each links to its own plans page; OpenVibe.Watch can tell you when a price changes.</p>
