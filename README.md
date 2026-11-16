@@ -94,7 +94,7 @@ Its own PostgreSQL tables, created by [migrations/](migrations/) and written by 
   `FOOD_GEO_CACHE_TTL_MS`.
 - **PostgreSQL** (`DATABASE_URL`, `DATABASE_DIRECT_URL`) and **Valkey** for shared limit counters (`VALKEY_URL`,
   `VALKEY_PREFIX`).
-- **Packages**: `openvibe-contracts` v0.122.1, `openvibe-sdk` v0.172.0 (`db`, `auth`, `account-data`, `limits`,
+- **Packages**: `openvibe-contracts` v0.122.1, `openvibe-sdk` v0.174.0 (`db`, `auth`, `account-data`, `limits`,
   `valkey`, `service`), `openvibe-publishing` (`ai`) and `openvibe-shared` v4.19.0 (`frame`, `legal`, `serve`,
   `release`, `metrics`, `ready`, `seo`, `shell`, `cache-policy`, `showcase`, `app-icon`).
 
@@ -295,6 +295,5 @@ Part of the [OpenVibe network](https://openvibe.network). Built in the open by [
 
 <!-- versions:start -->
 - openvibe-contracts: v0.419.0
-- openvibe-sdk: v0.172.0
 - openvibe-publishing: v1.7.0
 <!-- versions:end -->
