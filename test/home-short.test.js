@@ -54,7 +54,7 @@ const { boot, check, done } = require('./helpers/boot');
             // The content of the folds stays in the page.
             assert.match(page, /<h2 id="h-faq">Questions people ask<\/h2>/);
             assert.match(page, /<h2 id="h-network">Part of OpenVibe<\/h2>/);
-            assert.match(page, /One account\. \d+ sites\./, 'the other OpenVibe places are still in the page ("One account. N sites.", openvibe-shared 4.256.0)');
+            assert.match(page, /One account\.\s*(?:<span[^>]*>)?\d+(?:<\/span>)?\s*sites\./, 'the other OpenVibe places are still in the page ("One account. N sites.", openvibe-shared 4.256.0)');
         });
     } finally {
         await done(t);
