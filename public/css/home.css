@@ -17,7 +17,7 @@
 .hc-main strong { font-size: 1.25rem; color: var(--text-primary, #e6edf7); font-variant-numeric: tabular-nums; }
 .hc-sub { font-size: .84rem; color: var(--text-secondary, #96a7c2); }
 .hc-host { margin-top: auto; padding-top: 4px; font-size: .78rem; color: var(--text-muted, #7386a3); }
-.hc-tag { margin-left: 6px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border-light, #2c3d5c); font-size: .72rem; font-weight: 600; color: var(--text-secondary, #96a7c2); vertical-align: 2px; }
+.hc-tag { margin-left: 6px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border-light, #2c3d5c); font-size: .75rem; font-weight: 600; color: var(--text-secondary, #96a7c2); vertical-align: 2px; }
 
 .home-chips { list-style: none; padding: 0; margin: 14px 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .home-chips li { font-size: .92rem; }
